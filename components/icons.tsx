@@ -4,6 +4,8 @@ export {
   CircleAlert as ProblemIcon,
   Box as ModelsIcon,
   Check as SavedIcon,
+  ChevronDown as OpenIcon,
+  ChevronRight as CrumbIcon,
   Clock as ChangedIcon,
   KeyRound as TokenIcon,
   LogOut as SignOutIcon,

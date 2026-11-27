@@ -179,6 +179,8 @@ export const en = {
   },
   customer: {
     title: (name: string) => `Models for ${name}`,
+    breadcrumb: "Breadcrumb",
+    chooseVersion: "Choose a version",
     yourModels: "Your models",
     forName: (name: string) => `For ${name}`,
     lead: "Everything designed for you is here. Each new version appears as soon as it is ready.",

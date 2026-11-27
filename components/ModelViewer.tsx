@@ -57,10 +57,15 @@ function Viewer({ src, label }: { src: string; label: string }) {
   }, [src]);
 
   return (
-    <div className="mt-5">
+    <div>
+      {/* A flat stage with a 32 px grid, as in a slicer; not square, so the side panel fits beside it on a desktop. */}
       <div
-        className="relative aspect-square w-full overflow-hidden rounded-md border border-border bg-surface"
-        style={{ backgroundImage: "radial-gradient(circle at 50% 38%, var(--bg), var(--surface) 72%)" }}
+        className="relative h-[380px] w-full overflow-hidden rounded-md border border-border bg-surface md:h-[560px]"
+        style={{
+          backgroundImage: "linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+          backgroundPosition: "center",
+        }}
       >
         {/* The canvas goes in here (components/viewer/scene.ts). */}
         <div

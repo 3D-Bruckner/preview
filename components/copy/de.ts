@@ -177,6 +177,8 @@ export const de: Copy = {
   },
   customer: {
     title: (name: string) => `Modelle für ${name}`,
+    breadcrumb: "Pfad",
+    chooseVersion: "Versionen wählen",
     yourModels: "Deine Modelle",
     forName: (name: string) => `Für ${name}`,
     lead: "Hier siehst du alles, was für dich entworfen wird. Sobald eine neue Version fertig ist, erscheint sie hier.",

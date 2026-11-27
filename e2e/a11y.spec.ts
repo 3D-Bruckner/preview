@@ -20,7 +20,7 @@ async function everyControlByKeyboard(page: Page) {
   const total = await page.evaluate(() => {
     const controls = [...document.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex='0']")];
     const visible = controls.filter(
-      (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden" && !(el.role === "tab" && el.tabIndex === -1),
+      (el) => el.checkVisibility({ visibilityProperty: true }) && el.getClientRects().length > 0 && !(el.role === "tab" && el.tabIndex === -1),
     );
     visible.forEach((el, i) => el.setAttribute("data-control", String(i)));
     return visible.length;

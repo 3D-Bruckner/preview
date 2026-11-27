@@ -235,3 +235,26 @@ test("the customer pages show the instance's brand, its logo and its imprint, an
   expect(r.headers()).toMatchObject({ "content-type": "image/svg+xml", "x-content-type-options": "nosniff" });
   expect(r.headers()["content-security-policy"]).toBe("default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; sandbox");
 });
+
+test.describe("on a desktop", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("a model's page has a breadcrumb, a version picker, and the viewer beside a side panel", async ({ page }) => {
+    const { a, ramp } = await seed();
+    await page.goto(`/k/${a.link}/${ramp.id}`);
+    const crumbs = page.getByRole("navigation", { name: "Pfad" });
+    await expect(crumbs.getByRole("link", { name: "Deine Modelle" })).toHaveAttribute("href", `/k/${a.link}`);
+
+    const picker = page.getByText("Version 2 ·", { exact: false }).first();
+    await picker.click();
+    const choices = page.getByRole("list", { name: "Versionen wählen" }).getByRole("link");
+    await expect(choices).toHaveCount(2);
+    await expect(choices.nth(0)).toHaveAttribute("aria-current", "page");
+    await expect(choices.nth(1)).toHaveAttribute("href", `/k/${a.link}/${ramp.id}?v=1`);
+
+    const viewer = await page.getByRole("img", { name: "3D-Ansicht von Rampe" }).boundingBox();
+    const aside = await page.getByRole("complementary").boundingBox();
+    expect(aside!.x).toBeGreaterThan(viewer!.x + viewer!.width - 1);
+    await expect(page.getByRole("complementary").getByRole("region", { name: "Versionen" })).toContainText("angezeigt");
+  });
+});
