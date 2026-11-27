@@ -5,8 +5,9 @@
 //
 // Everything that names whoever runs an instance is a setting (the brand's name, link, accent colour and logo, the imprint and privacy
 // links): the product itself names no operator, and its defaults are neutral.
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { resolve } from "node:path";
 import * as z from "zod";
+import { isInside } from "./paths";
 
 export type Brand = {
   /** PREVIEW_BRAND_NAME: shown in the header and the page title. */
@@ -124,8 +125,7 @@ function longHex(hex: string): string {
 function logoPath(dataDir: string, logo: string): string {
   const root = resolve(dataDir);
   const path = resolve(root, logo);
-  const rel = relative(root, path);
-  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error(LOGO);
+  if (!isInside(root, path)) throw new Error(LOGO);
   return path;
 }
 

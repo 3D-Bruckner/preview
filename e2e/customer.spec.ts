@@ -136,9 +136,14 @@ test("the files are the customer's own, shown inline, sandboxed, private and not
   await page.getByRole("link", { name: /Rampe/ }).click();
   const threemf = (await page.getByRole("img", { name: "3D-Ansicht von Rampe" }).getAttribute("data-threemf"))!;
   const svg = (await page.getByRole("img", { name: "Zeichnung 2" }).getAttribute("src"))!;
-  for (const [url, type] of [
-    [threemf, "model/3mf"],
-    [svg, "image/svg+xml"],
+  const pdf = (await page.getByRole("link", { name: "Zeichnung 3 (PDF)" }).getAttribute("href"))!;
+  // Every file is sandboxed but a PDF, which Chromium's PDF viewer wouldn't open sandboxed; none may be framed.
+  const SANDBOXED = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; sandbox";
+  const PDF_CSP = "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'";
+  for (const [url, type, csp] of [
+    [threemf, "model/3mf", SANDBOXED],
+    [svg, "image/svg+xml", SANDBOXED],
+    [pdf, "application/pdf", PDF_CSP],
   ] as const) {
     const r = await request.get(url);
     expect(r.status(), url).toBe(200);
@@ -148,7 +153,7 @@ test("the files are the customer's own, shown inline, sandboxed, private and not
       "cache-control": "private, max-age=3600",
       "x-content-type-options": "nosniff",
       "x-robots-tag": "noindex, nofollow",
-      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      "content-security-policy": csp,
     });
     expect(r.headers()["set-cookie"]).toBeUndefined();
   }
@@ -209,5 +214,5 @@ test("the customer pages show the instance's brand, its logo and its imprint, an
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "Impressum" })).toHaveAttribute("href", "https://studio.example.com/imprint");
   const r = await page.request.get("/brand/logo");
   expect(r.headers()).toMatchObject({ "content-type": "image/svg+xml", "x-content-type-options": "nosniff" });
-  expect(r.headers()["content-security-policy"]).toContain("sandbox");
+  expect(r.headers()["content-security-policy"]).toBe("default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; sandbox");
 });

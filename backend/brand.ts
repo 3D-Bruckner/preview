@@ -1,8 +1,9 @@
 // The brand's logo as app/brand/logo/route.ts serves it. PREVIEW_LOGO was checked to lie inside DATA_DIR when the settings were read
 // (config.ts), but only as a path: a symbolic link there could still point anywhere, so the file actually opened is checked again here.
 import { realpathSync, statSync } from "node:fs";
-import { extname, isAbsolute, relative, sep } from "node:path";
+import { extname } from "node:path";
 import type { Config } from "./config";
+import { isInside } from "./paths";
 
 const TYPES: Record<string, string> = { ".svg": "image/svg+xml", ".png": "image/png" };
 
@@ -12,8 +13,7 @@ export function logoFile(config: Config): { path: string; type: string } | null 
   try {
     const root = realpathSync(config.dataDir);
     const path = realpathSync(config.brand.logo);
-    const rel = relative(root, path);
-    if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return null;
+    if (!isInside(root, path)) return null;
     const type = TYPES[extname(path).toLowerCase()];
     if (!type || !statSync(path).isFile()) return null;
     return { path, type };
