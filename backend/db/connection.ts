@@ -27,9 +27,11 @@ export function openDatabase(dataDir: string): Connection {
   mkdirSync(dataDir, { recursive: true });
   const raw = new Database(join(dataDir, "preview.sqlite"));
   try {
+    // The wait first: two processes opening a new file at once (the e2e server and a test's seed) would otherwise find it locked while
+    // the other switches it to WAL or migrates it.
+    raw.pragma("busy_timeout = 5000");
     raw.pragma("journal_mode = WAL");
     raw.pragma("foreign_keys = ON");
-    raw.pragma("busy_timeout = 5000");
     migrate(raw, MIGRATIONS);
   } catch (e) {
     raw.close();

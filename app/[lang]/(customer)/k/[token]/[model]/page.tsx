@@ -5,6 +5,7 @@ import { customerModel } from "@/backend";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor } from "@/components/copy";
 import { formatDay } from "@/components/format";
+import { ModelViewer } from "@/components/ModelViewer";
 import { ui } from "@/components/ui";
 
 type Props = PageProps<"/[lang]/k/[token]/[model]">;
@@ -33,14 +34,7 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
       <h1 className={`${ui.h1} mt-2`}>{view.model.title}</h1>
       {view.model.description && <p className="mt-2 text-muted">{view.model.description}</p>}
 
-      {/* The 3D view (a later task) takes the 3MF from here. */}
-      <div
-        data-viewer
-        data-threemf={shown.threemfUrl}
-        role="img"
-        aria-label={t.viewer(view.model.title)}
-        className="mt-5 aspect-square w-full rounded-xl border border-border bg-surface"
-      />
+      <ModelViewer src={shown.threemfUrl} label={t.viewer(view.model.title)} />
 
       <section aria-labelledby="versions" className="mt-6">
         <h2 id="versions" className={ui.h2}>

@@ -6,6 +6,7 @@ export {
   KeyRound as TokenIcon,
   LogOut as SignOutIcon,
   Plus as AddIcon,
+  RotateCcw as ResetViewIcon,
   Settings as SettingsIcon,
   Trash2 as DeleteIcon,
   Users as CustomersIcon,
