@@ -1,0 +1,167 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Preview API",
+    "version": "1",
+    "description": "Customers, their 3D models and the models' versions, shown view-only behind a link per customer. Every operation mirrors an MCP tool of /mcp, named in its description.\n\nEvery error is JSON, `{\"error\": \"...\", \"code\": \"...\"}`. Besides the responses listed per operation, an unknown path answers 404, a method an operation doesn't have 405 with `Allow`, and a failure on the server's side 500 (`internal`) without details."
+  },
+  "servers": [{ "url": "https://preview.example.com/api/v1" }],
+  "tags": [{ "name": "Tokens", "description": "The caller's own API tokens." }],
+  "paths": {
+    "/tokens": {
+      "get": {
+        "operationId": "listApiTokens",
+        "summary": "List the caller's API tokens, newest first (never the tokens themselves)",
+        "description": "The REST counterpart of the MCP tool `list_api_tokens`.",
+        "tags": ["Tokens"],
+        "security": [{ "bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "The tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tokens": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "scope": { "type": "string", "enum": ["read", "read+write"] },
+                          "start": { "type": "string", "description": "The token's first characters, to recognise it by." },
+                          "created_at": { "type": "string" },
+                          "expires_at": { "type": ["string", "null"] },
+                          "last_used_at": { "type": ["string", "null"] }
+                        },
+                        "required": ["id", "name", "scope", "start", "created_at", "expires_at", "last_used_at"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["tokens"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApiToken",
+        "summary": "Make an API token for the caller; the token is in this answer once and never again. Not with an API token (403)",
+        "description": "The REST counterpart of the MCP tool `create_api_token`.",
+        "tags": ["Tokens"],
+        "security": [{ "bearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 60, "description": "What it is for, e.g. 'workshop upload'." },
+                  "scope": {
+                    "type": "string",
+                    "enum": ["read", "read+write"],
+                    "description": "`read` may only GET; `read+write` may change things (an upload needs it)."
+                  },
+                  "expiresInDays": {
+                    "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 365 }, { "type": "null" }],
+                    "description": "Its lifetime in days; null: it never expires (chosen on purpose)."
+                  }
+                },
+                "required": ["name", "scope", "expiresInDays"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "scope": { "type": "string", "enum": ["read", "read+write"] },
+                    "start": { "type": "string", "description": "The token's first characters, to recognise it by." },
+                    "created_at": { "type": "string" },
+                    "expires_at": { "type": ["string", "null"] },
+                    "last_used_at": { "type": ["string", "null"] },
+                    "token": { "type": "string", "description": "The token itself, shown this once." }
+                  },
+                  "required": ["id", "name", "scope", "start", "created_at", "expires_at", "last_used_at", "token"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/tokens/{id}": {
+      "delete": {
+        "operationId": "revokeApiToken",
+        "summary": "Revoke one of the caller's API tokens. Not with an API token (403)",
+        "description": "The REST counterpart of the MCP tool `revoke_api_token`.",
+        "tags": ["Tokens"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The token's id", "schema": { "type": "string" } }],
+        "responses": {
+          "204": { "description": "Revoked" },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" }, "code": { "type": "string" } },
+        "required": ["error", "code"],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token (`preview_…`, made in the web app or with create_api_token; a `read` token may only GET), or an OAuth access token from this instance issued for this API (`resource=<base>/api/v1`). A token for /mcp is refused here."
+      }
+    }
+  }
+}

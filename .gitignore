@@ -1,2 +1,15 @@
-.superpowers/
 node_modules/
+.next/
+out/
+next-env.d.ts
+data/
+*.sqlite*
+.env*
+!.env.example
+test-results/
+playwright-report/
+*.tsbuildinfo
+# Written by `next dev` (Next's agent rules); generated blocks in agent files are not committed (conventions: CLAUDE.md).
+AGENTS.md
+# Scratch of the agent workflows.
+.superpowers/

@@ -1,0 +1,103 @@
+// The UI's words in German, typed against the English module: a string missing here fails the typecheck.
+import type { Copy } from "./en";
+
+export const de: Copy = {
+  app: {
+    description: "3D-Vorschauen von Modellen, nur zum Ansehen.",
+  },
+  language: {
+    label: "Sprache",
+    names: { en: "English", de: "Deutsch" },
+  },
+  home: {
+    title: "Kunden",
+    empty: "Noch keine Kunden.",
+  },
+  signIn: {
+    title: "Anmelden",
+    intro: "Anmelden können nur die Personen, die hier freigegeben sind.",
+    email: "E-Mail-Adresse",
+    sendCode: "Code zuschicken",
+    sending: "Wird gesendet…",
+    sent: (email: string) => `Wir haben einen Anmeldecode an ${email} geschickt. Gib ihn hier ein.`,
+    code: "Code",
+    checkCode: "Mit dem Code anmelden",
+    otherAddress: "Andere Adresse verwenden",
+    viaProvider: (label: string) => `Mit ${label} anmelden`,
+    or: "oder",
+    failedSend: "Der Code ließ sich nicht verschicken. Bitte gleich noch einmal versuchen.",
+    mailNotSent: "Die E-Mail mit dem Code ließ sich nicht verschicken. Bitte später noch einmal versuchen.",
+    wrongCode: "Dieser Code stimmt nicht oder ist abgelaufen. Bitte einen neuen anfordern.",
+    providerFailed: (label: string) => `Die Anmeldung mit ${label} ließ sich nicht starten. Bitte noch einmal versuchen.`,
+    refused: {
+      email_not_allowed: "Mit dieser Adresse kann man sich hier nicht anmelden.",
+      email_not_verified: "Der Anbieter hat diese Adresse nicht bestätigt, deshalb kann sie nicht zum Anmelden dienen.",
+      link: "Dieser Anmeldelink ist abgelaufen oder wurde schon benutzt. Bitte einen neuen Code anfordern.",
+      other: "Die Anmeldung hat nicht geklappt. Bitte noch einmal versuchen.",
+      byProvider: (label: string) => `${label} hat die Anmeldung abgelehnt.`,
+    },
+  },
+  consent: {
+    title: "Zugriff erlauben?",
+    unknownClient: "Eine App, die diese Instanz nicht kennt,",
+    asks: (client: string, email: string) => `${client} möchte als ${email} handeln.`,
+    recorded: "Was sie tut, wird in deinem Namen festgehalten, mit ihrem Namen.",
+    allow: "Erlauben",
+    deny: "Ablehnen",
+    failed: "Das hat nicht geklappt. Fang in der App, die dich hierher geschickt hat, noch einmal an.",
+  },
+  mail: {
+    subject: (code: string) => `${code} ist dein Anmeldecode`,
+    body: (code: string, link: string | undefined) =>
+      [
+        `Dein Anmeldecode: ${code}`,
+        ...(link ? ["", "Oder melde dich mit diesem Link an:", link] : []),
+        "",
+        "Code und Link gelten ein paar Minuten. Wenn du sie nicht angefordert hast, ignoriere diese Mail.",
+      ].join("\n"),
+  },
+  common: {
+    cancel: "Abbrechen",
+    failed: "Das hat nicht geklappt. Bitte noch einmal versuchen.",
+    signedOut: "Du wurdest abgemeldet. Bitte die Seite neu laden und anmelden.",
+  },
+  nav: {
+    label: "Hauptmenü",
+    customers: "Kunden",
+    settings: "Einstellungen",
+  },
+  settings: {
+    title: "Einstellungen",
+    signOut: "Abmelden",
+    tokens: {
+      heading: "API-Tokens",
+      intro: "Für Skripte, etwa das Hochladen aus einer Werkstatt. Ein Token wird einmal gezeigt, direkt nach dem Erstellen.",
+      name: "Name des Tokens",
+      scope: "Rechte",
+      scopes: { read: "Nur lesen", "read+write": "Lesen und schreiben" },
+      expiry: "Gültig für",
+      expiries: { "30": "30 Tage", "90": "90 Tage", "365": "ein Jahr", never: "Unbegrenzt" },
+      create: "Token erstellen",
+      created: "Neuer Token",
+      copyHint: "Jetzt kopieren: Er wird nicht noch einmal gezeigt.",
+      list: "Deine API-Tokens",
+      none: "Keine API-Tokens.",
+      lastUsed: (when: string | null) => (when ? `Zuletzt benutzt ${when}` : "Nie benutzt"),
+      expires: (when: string | null) => (when ? `Gültig bis ${when}` : "Unbegrenzt gültig"),
+      revoke: (name: string) => `${name} widerrufen`,
+      revokeConfirm: (name: string) => `Den Token „${name}“ widerrufen? Was ihn nutzt, wird ab dann abgewiesen.`,
+      revokeShort: "Widerrufen",
+      revoked: "Token widerrufen",
+    },
+  },
+  footer: {
+    label: "Rechtliches",
+    imprint: "Impressum",
+    privacy: "Datenschutz",
+  },
+  notFound: {
+    title: "Nicht gefunden",
+    text: "Unter dieser Adresse gibt es nichts.",
+    back: "Zur Startseite",
+  },
+};

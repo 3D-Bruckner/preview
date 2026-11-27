@@ -1,0 +1,17 @@
+# preview: one container; preview.sqlite, auth.sqlite and the uploaded files in ./data. Every setting is in .env (a filled-in copy of
+# .env.example); nothing is listed here, so a new setting never touches this file. preview signs people in itself: the reverse proxy in
+# front only terminates TLS and passes everything through.
+#
+#   cp .env.example .env && chmod 600 .env   # then fill it in
+#   docker compose pull && docker compose up -d
+services:
+  preview:
+    # :main follows main once CI passed.
+    image: ghcr.io/3d-bruckner/preview:main
+    container_name: preview
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    ports:
+      - "127.0.0.1:3000:3000"
