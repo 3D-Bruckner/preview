@@ -73,3 +73,25 @@ test("on a desktop, the measurements chip over the view says the whole model's s
   await open(page, "ramp.3mf", "Rampe");
   await expect(page.getByTestId("size-chip")).toHaveText("20 × 20 × 20 mm");
 });
+
+test("another version starts the review over: the whole model, nothing hidden", async ({ page }) => {
+  const c = customer(`Prüfer ${Math.random().toString(36).slice(2, 6)}`);
+  const m = model(c, "Spulenhalter");
+  await version(m, { threemf: "ramp.3mf", note: "Rampe" });
+  await version(m, { threemf: "plates.3mf", note: "Spule" });
+  await page.goto(`/k/${c.link}/${m.id}`);
+  const view = page.getByRole("img", { name: "3D-Ansicht von Spulenhalter" });
+  await expect(view).toHaveAttribute("data-state", "ready", { timeout: 20_000 });
+  await page.getByRole("button", { name: "Nur Spule 1 zeigen" }).click();
+  await expect.poll(() => measured(page)).toEqual(["10 mm", "10 mm", "10 mm"]);
+
+  const newest = (await view.getAttribute("data-threemf"))!;
+  await page
+    .getByRole("region", { name: "Versionen" })
+    .getByRole("link", { name: /Version 1/ })
+    .click();
+  await expect(view).not.toHaveAttribute("data-threemf", newest);
+  await expect(view).toHaveAttribute("data-state", "ready", { timeout: 20_000 });
+  await expect(dims(page)).toContainText("ganzes Modell");
+  await expect.poll(() => measured(page)).toEqual(["20 mm", "20 mm", "20 mm"]);
+});

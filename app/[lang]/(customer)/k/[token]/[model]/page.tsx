@@ -77,7 +77,8 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
         </details>
       </div>
 
-      <ModelReview src={shown.threemfUrl} label={t.viewer(view.model.title)} facts={shown.facts}>
+      {/* Keyed by the file: another version starts the review over (whole model, nothing hidden). */}
+      <ModelReview key={shown.threemfUrl} src={shown.threemfUrl} label={t.viewer(view.model.title)} facts={shown.facts}>
         <Card id="versions" title={t.versions} aside={view.versions.length}>
           <ol className="divide-y divide-border">
             {view.versions.map((v) => {
