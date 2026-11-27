@@ -1,5 +1,6 @@
 import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCustomer } from "./customers";
 import { addVersion, versionFile } from "./files";
@@ -64,6 +65,16 @@ describe("addVersion", () => {
     expect(r).toMatchObject({ ok: false, reason: "invalid", message: expect.stringContaining("not a 3MF") });
     expect(value(listVersions(rt, modelId))).toEqual([]);
     expect(stored()).toEqual([]);
+  });
+
+  it("accepts a 3MF whose model entry is huge, without inflating it", async () => {
+    // 300 MB of zeros is a few hundred KB zipped; inflating it is what a bomb needs. Only the central directory is read.
+    const bomb = Buffer.from(zipSync({ "3D/3dmodel.model": new Uint8Array(300 * 1024 * 1024) }, { level: 9 }));
+    expect(bomb.length).toBeLessThan(1024 * 1024);
+    const before = process.memoryUsage().arrayBuffers;
+    const r = await addVersion(rt, modelId, { threemf: upload(rt, "bomb.3mf", bomb), preview: fixture("preview.png"), drawings: [] });
+    expect(r.ok).toBe(true);
+    expect(process.memoryUsage().arrayBuffers - before).toBeLessThan(100 * 1024 * 1024);
   });
 
   it("refuses bytes that are no zip at all", async () => {

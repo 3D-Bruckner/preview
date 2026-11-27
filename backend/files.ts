@@ -25,13 +25,21 @@ const isPdf = (b: Buffer) => b.subarray(0, 5).toString("latin1") === "%PDF-";
 /** An SVG's root element: after an optional BOM, XML declaration, comments and doctype, the first element is <svg. */
 const isSvg = (b: Buffer) => /^﻿?\s*(<\?xml[^>]*\?>\s*|<!--[\s\S]*?-->\s*|<!DOCTYPE[^>]*>\s*)*<svg[\s>]/i.test(b.subarray(0, 4096).toString("utf8"));
 
-/** A 3MF is a zip with 3D/3dmodel.model; only that entry is unzipped. */
+/** A 3MF is a zip with 3D/3dmodel.model. Decided from the central directory alone: the filter sees the entry's name and returns false, so
+ * nothing is ever inflated (an entry's declared size is the sender's, and a few KB can inflate to gigabytes). */
 function isThreeMf(b: Buffer): boolean {
+  let found = false;
   try {
-    return "3D/3dmodel.model" in unzipSync(b, { filter: (f) => f.name === "3D/3dmodel.model" });
+    unzipSync(b, {
+      filter: (f) => {
+        if (f.name === "3D/3dmodel.model") found = true;
+        return false;
+      },
+    });
   } catch {
     return false;
   }
+  return found;
 }
 
 function drawingKind(b: Buffer): DrawingKind | null {
