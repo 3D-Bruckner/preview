@@ -1,0 +1,72 @@
+# Dependency bumps as pull requests with CI run (conventions: repo-setup/dependabot). The repository is public, so main's ruleset requires
+# the checks and .github/workflows/dependabot-automerge.yml merges patch and minor bumps by itself once they are green; majors are merged
+# by hand (CLAUDE.md). Security updates (switched on in the repository's settings) come at once
+# and skip the cooldown; everything else waits two weeks after a release and comes grouped on Monday mornings.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Europe/Berlin
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: Dependencies
+    labels: [dependencies]
+    ignore:
+      # @types/node follows the Node major the app runs on (.nvmrc, the Dockerfile), by hand.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+      # TypeScript 7 (the Go port) does not work with Next.js yet; lift this once Next.js supports it.
+      - dependency-name: typescript
+        versions: [">=7"]
+    groups:
+      # Next.js and its ESLint config move together. Next.js is also one of next-app-kit's peers: a bump the kit hasn't made fails
+      # npm ci (the peers are exact), and waits for the kit's release.
+      nextjs:
+        patterns: [next, eslint-config-next, "@next/*"]
+      # next-app-kit's peers, at the kit's exact versions: they move together with a new kit release (its README, "Peers move together").
+      kit-peers:
+        patterns: [better-auth, "@better-auth/*", "@modelcontextprotocol/server", better-sqlite3, kysely, zod, nodemailer]
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Europe/Berlin
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: Dependencies
+    labels: [dependencies]
+    ignore:
+      # The Node major follows .nvmrc and the Dockerfile together, by hand.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "05:00"
+      timezone: Europe/Berlin
+    cooldown:
+      default-days: 14
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: Dependencies
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ["*"]

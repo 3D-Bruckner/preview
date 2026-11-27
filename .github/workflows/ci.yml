@@ -1,0 +1,134 @@
+name: ci
+on:
+  # Every branch, so work in progress is checked before its pull request; the image is published from main only.
+  push:
+    branches: ["**"]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  # The Playwright version the lockfile pins, so the check runs in the image made for exactly that version.
+  playwright:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: version
+        run: echo "version=$(node -p 'require("./package-lock.json").packages["node_modules/@playwright/test"].version')" >> "$GITHUB_OUTPUT"
+  # Microsoft's Playwright image has the browsers and their system libraries built in: the check needs no apt, so an outage of the Ubuntu
+  # mirrors can't fail it. setup-node still pins .nvmrc's Node, whatever the image ships. Keep the job's name: main's ruleset will
+  # require it once the repository gets rulesets.
+  check:
+    needs: playwright
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v${{ needs.playwright.outputs.version }}-noble
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      # openapi.json is generated from the REST table and committed: regenerating it must change nothing.
+      - run: npm run generate -- --check
+      - run: npm run build
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report
+  # The image, built and started on every push; pushed to ghcr.io/3d-bruckner/preview:main only from main, once check passed.
+  image:
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      # The image is started once before it is pushed: an image that builds but cannot start must never reach a server.
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: preview:smoke
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: The image starts and answers
+        run: |
+          # Sign-in by email needs an SMTP server to start (none listens here). PREVIEW_E2E=1 must not switch the test sign-in route on in
+          # the image, which is a production build.
+          docker run -d --name smoke -p 127.0.0.1:3000:3000 -e PUBLIC_URL=http://127.0.0.1:3000 -e PREVIEW_SECRET="$(openssl rand -hex 32)" \
+            -e PREVIEW_SMTP_URL=smtp://127.0.0.1:2525 -e PREVIEW_ALLOWED_EMAILS=owner@example.com -e PREVIEW_E2E=1 preview:smoke
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:3000/health && break; sleep 1; done
+          test "$(curl -s http://127.0.0.1:3000/health)" = '{"status":"ok"}'
+          # Someone not signed in is sent to the sign-in page, which speaks the browser's language.
+          curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3000/ | grep -q '/signin?next=%2F$'
+          curl -s -H 'accept-language: de-DE' http://127.0.0.1:3000/signin | grep -q '<html lang="de"'
+          curl -s -H 'accept-language: de-DE' http://127.0.0.1:3000/signin | grep -q 'E-Mail-Adresse'
+          if curl -s -H 'accept-language: de-DE' http://127.0.0.1:3000/signin | grep -qi 'passkey'; then echo "/signin offers a passkey" >&2; exit 1; fi
+          # The pages are rendered per request and private: no prerendered page goes out with a shared cache's s-maxage.
+          curl -sI http://127.0.0.1:3000/signin | grep -i '^cache-control:' | tee /dev/stderr | grep -q private
+          if curl -sI http://127.0.0.1:3000/signin | grep -i '^cache-control:' | grep -q s-maxage; then echo "/signin carries s-maxage" >&2; exit 1; fi
+          # The test sign-in route has no handler in the image, PREVIEW_E2E=1 or not, and sets no cookie.
+          code=$(curl -s -o /dev/null -D /tmp/test-sign-in.headers -w '%{http_code}' 'http://127.0.0.1:3000/api/test/sign-in?email=owner@example.com')
+          case "$code" in 404|405) ;; *) echo "GET /api/test/sign-in answered $code" >&2; exit 1 ;; esac
+          if grep -qi '^set-cookie:' /tmp/test-sign-in.headers; then echo "GET /api/test/sign-in set a cookie" >&2; exit 1; fi
+          # MCP clients find the authorization server.
+          curl -sf http://127.0.0.1:3000/.well-known/oauth-protected-resource/mcp | grep -q '"resource":"http://127.0.0.1:3000/mcp"'
+          # Outgoing HTTPS trusts the system store: the server runs with --use-system-ca.
+          docker inspect --format '{{json .Config.Entrypoint}}' preview:smoke | grep -q -- --use-system-ca
+          # Docker's own health check (a node script: the distroless image has no shell) reports healthy.
+          for i in $(seq 1 20); do [ "$(docker inspect --format '{{.State.Health.Status}}' smoke)" = healthy ] && break; sleep 3; done
+          test "$(docker inspect --format '{{.State.Health.Status}}' smoke)" = healthy
+          docker logs smoke
+      - name: A customer's page and files are served through their link
+        run: |
+          B=http://127.0.0.1:3000
+          # The kit's command for the operator makes a token that may write (docs/configuration.md).
+          TOKEN=$(docker exec -u 1000 smoke /nodejs/bin/node node_modules/next-app-kit/dist/cli.js token --prefix PREVIEW --token-prefix preview_ \
+            --email owner@example.com --name smoke --scope read+write --days 1 | grep -o 'preview_[A-Za-z0-9_-]*' | head -1)
+          test -n "$TOKEN"
+          api() { curl -sf -H "authorization: Bearer $TOKEN" "$@"; }
+          CUSTOMER=$(api -H 'content-type: application/json' -d '{"name":"Smoke"}' $B/api/v1/customers | jq -r .id)
+          MODEL=$(api -H 'content-type: application/json' -d "{\"customerId\":\"$CUSTOMER\",\"title\":\"Ramp\"}" $B/api/v1/models | jq -r .id)
+          UPLOAD=$(api -F model=@backend/fixtures/ramp.3mf -F preview=@backend/fixtures/preview.png $B/api/models/$MODEL/versions)
+          VERSION=$(echo "$UPLOAD" | jq -r .id)
+          LINK=$(echo "$UPLOAD" | jq -r .link)
+          K=${LINK#*/k/}; K=${K%%/*}
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/$K)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/$K/$MODEL)" = 200
+          curl -sD /tmp/model.headers -o /dev/null -w '%{http_code}' $B/k/$K/files/$VERSION/model.3mf | grep -qx 200
+          grep -i '^content-security-policy:' /tmp/model.headers | grep -q sandbox
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/not-a-token-0000000000000000000/$MODEL)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/not-a-token-0000000000000000000/files/$VERSION/model.3mf)" = 404
+      # For arm64 servers as well as amd64 ones.
+      - uses: docker/setup-qemu-action@v4
+        if: github.ref == 'refs/heads/main'
+      - uses: docker/login-action@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        if: github.ref == 'refs/heads/main'
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/3d-bruckner/preview:main
+            ghcr.io/3d-bruckner/preview:sha-${{ github.sha }}
+          cache-from: type=gha
+          # Attached to the image in the registry: what it contains, and how and from which commit it was built.
+          sbom: true
+          provenance: mode=max

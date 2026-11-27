@@ -1,0 +1,711 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Preview API",
+    "version": "1",
+    "description": "Customers, their 3D models and the models' versions, shown view-only behind a link per customer. Every operation mirrors an MCP tool of /mcp, named in its description.\n\nEvery error is JSON, `{\"error\": \"...\", \"code\": \"...\"}`. Besides the responses listed per operation, an unknown path answers 404, a method an operation doesn't have 405 with `Allow`, and a failure on the server's side 500 (`internal`) without details."
+  },
+  "servers": [{ "url": "https://preview.example.com/api/v1" }],
+  "tags": [
+    { "name": "Customers", "description": "Who the models are for, and the link each opens their page by." },
+    { "name": "Models", "description": "What a customer is shown, and its versions." },
+    { "name": "Tokens", "description": "The caller's own API tokens." }
+  ],
+  "paths": {
+    "/customers": {
+      "get": {
+        "operationId": "listCustomers",
+        "summary": "List the customers by name, each with their link",
+        "description": "The REST counterpart of the MCP tool `list_customers`.",
+        "tags": ["Customers"],
+        "security": [{ "bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "The customers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "customers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "name": { "type": "string" },
+                          "note": { "type": ["string", "null"] },
+                          "language": { "type": "string", "enum": ["de", "en"] },
+                          "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
+                          "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
+                          "created_at": { "type": "string" }
+                        },
+                        "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["customers"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCustomer",
+        "summary": "Add a customer and make their link",
+        "description": "The REST counterpart of the MCP tool `create_customer`.",
+        "tags": ["Customers"],
+        "security": [{ "bearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 120, "description": "The customer's name, as the workshop knows them." },
+                  "note": { "description": "A note for the workshop's own use; the customer never sees it.", "type": "string", "maxLength": 2000 },
+                  "language": { "description": "The language the customer's page opens in; German when left out.", "type": "string", "enum": ["de", "en"] }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "name": { "type": "string" },
+                    "note": { "type": ["string", "null"] },
+                    "language": { "type": "string", "enum": ["de", "en"] },
+                    "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
+                    "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
+                    "created_at": { "type": "string" }
+                  },
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/customers/{id}": {
+      "get": {
+        "operationId": "getCustomer",
+        "summary": "One customer with their link (null when revoked)",
+        "description": "The REST counterpart of the MCP tool `get_customer`.",
+        "tags": ["Customers"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The customer's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "The customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "name": { "type": "string" },
+                    "note": { "type": ["string", "null"] },
+                    "language": { "type": "string", "enum": ["de", "en"] },
+                    "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
+                    "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
+                    "created_at": { "type": "string" }
+                  },
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "patch": {
+        "operationId": "updateCustomer",
+        "summary": "Change a customer's name, note or language; only what is given changes",
+        "description": "The REST counterpart of the MCP tool `update_customer`.",
+        "tags": ["Customers"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The customer's id", "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 120, "description": "The customer's name, as the workshop knows them." },
+                  "note": { "description": "A note for the workshop's own use; the customer never sees it.", "type": "string", "maxLength": 2000 },
+                  "language": { "description": "The language the customer's page opens in; German when left out.", "type": "string", "enum": ["de", "en"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The customer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "name": { "type": "string" },
+                    "note": { "type": ["string", "null"] },
+                    "language": { "type": "string", "enum": ["de", "en"] },
+                    "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
+                    "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
+                    "created_at": { "type": "string" }
+                  },
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/customers/{id}/link": {
+      "post": {
+        "operationId": "renewLink",
+        "summary": "Give the customer a new link; the old one stops working",
+        "description": "The REST counterpart of the MCP tool `renew_link`.",
+        "tags": ["Customers"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The customer's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "The customer with the new link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "name": { "type": "string" },
+                    "note": { "type": ["string", "null"] },
+                    "language": { "type": "string", "enum": ["de", "en"] },
+                    "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
+                    "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
+                    "created_at": { "type": "string" }
+                  },
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      },
+      "delete": {
+        "operationId": "revokeLink",
+        "summary": "Take the customer's link away; nothing opens their page until it is renewed",
+        "description": "The REST counterpart of the MCP tool `revoke_link`.",
+        "tags": ["Customers"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The customer's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "The customer without a link",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "name": { "type": "string" },
+                    "note": { "type": ["string", "null"] },
+                    "language": { "type": "string", "enum": ["de", "en"] },
+                    "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
+                    "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
+                    "created_at": { "type": "string" }
+                  },
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/models": {
+      "get": {
+        "operationId": "listModels",
+        "summary": "List models, newest first, all or one customer's (?customer=<id>)",
+        "description": "The REST counterpart of the MCP tool `list_models`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "query",
+            "required": false,
+            "description": "Only this customer's models.",
+            "schema": { "description": "Only this customer's models.", "type": "string", "minLength": 1 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "models": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "customer_id": { "type": "string", "minLength": 1 },
+                          "title": { "type": "string" },
+                          "description": { "type": ["string", "null"] },
+                          "link_url": {
+                            "description": "The link that opens this model for its customer; null when the customer's link is revoked.",
+                            "type": ["string", "null"]
+                          },
+                          "admin_url": { "type": "string", "description": "The model's page in the web app, for the person who runs preview." },
+                          "created_at": { "type": "string" },
+                          "updated_at": { "type": "string" }
+                        },
+                        "required": ["id", "customer_id", "title", "description", "link_url", "admin_url", "created_at", "updated_at"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["models"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createModel",
+        "summary": "Add a model for a customer",
+        "description": "The REST counterpart of the MCP tool `create_model`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": { "type": "string", "minLength": 1, "description": "The customer the model is for (list_customers)." },
+                  "title": { "type": "string", "minLength": 1, "maxLength": 160, "description": "What the customer sees as the model's name." },
+                  "description": { "description": "A line or two the customer sees under the title.", "type": "string", "maxLength": 4000 }
+                },
+                "required": ["customerId", "title"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "customer_id": { "type": "string", "minLength": 1 },
+                    "title": { "type": "string" },
+                    "description": { "type": ["string", "null"] },
+                    "link_url": {
+                      "description": "The link that opens this model for its customer; null when the customer's link is revoked.",
+                      "type": ["string", "null"]
+                    },
+                    "admin_url": { "type": "string", "description": "The model's page in the web app, for the person who runs preview." },
+                    "created_at": { "type": "string" },
+                    "updated_at": { "type": "string" }
+                  },
+                  "required": ["id", "customer_id", "title", "description", "link_url", "admin_url", "created_at", "updated_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/models/{id}": {
+      "patch": {
+        "operationId": "updateModel",
+        "summary": "Change a model's title or description; only what is given changes",
+        "description": "The REST counterpart of the MCP tool `update_model`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The model's id", "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "minLength": 1, "maxLength": 160, "description": "What the customer sees as the model's name." },
+                  "description": { "description": "A line or two the customer sees under the title.", "type": "string", "maxLength": 4000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "customer_id": { "type": "string", "minLength": 1 },
+                    "title": { "type": "string" },
+                    "description": { "type": ["string", "null"] },
+                    "link_url": {
+                      "description": "The link that opens this model for its customer; null when the customer's link is revoked.",
+                      "type": ["string", "null"]
+                    },
+                    "admin_url": { "type": "string", "description": "The model's page in the web app, for the person who runs preview." },
+                    "created_at": { "type": "string" },
+                    "updated_at": { "type": "string" }
+                  },
+                  "required": ["id", "customer_id", "title", "description", "link_url", "admin_url", "created_at", "updated_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/models/{id}/versions": {
+      "get": {
+        "operationId": "listVersions",
+        "summary": "A model's versions, newest first. A version is uploaded with POST /api/models/{id}/versions (multipart; not part of this API)",
+        "description": "The REST counterpart of the MCP tool `list_versions`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The model's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "The versions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "versions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "model_id": { "type": "string", "minLength": 1 },
+                          "number": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                          "note": { "type": ["string", "null"] },
+                          "created_at": { "type": "string" },
+                          "drawings": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": { "id": { "type": "string", "minLength": 1 }, "kind": { "type": "string", "enum": ["png", "svg", "pdf"] } },
+                              "required": ["id", "kind"],
+                              "additionalProperties": false
+                            }
+                          }
+                        },
+                        "required": ["id", "model_id", "number", "note", "created_at", "drawings"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["versions"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/tokens": {
+      "get": {
+        "operationId": "listApiTokens",
+        "summary": "List the caller's API tokens, newest first (never the tokens themselves)",
+        "description": "The REST counterpart of the MCP tool `list_api_tokens`.",
+        "tags": ["Tokens"],
+        "security": [{ "bearer": [] }],
+        "responses": {
+          "200": {
+            "description": "The tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "tokens": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "scope": { "type": "string", "enum": ["read", "read+write"] },
+                          "start": { "type": "string", "description": "The token's first characters, to recognise it by." },
+                          "created_at": { "type": "string" },
+                          "expires_at": { "type": ["string", "null"] },
+                          "last_used_at": { "type": ["string", "null"] }
+                        },
+                        "required": ["id", "name", "scope", "start", "created_at", "expires_at", "last_used_at"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["tokens"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApiToken",
+        "summary": "Make an API token for the caller; the token is in this answer once and never again. Not with an API token (403)",
+        "description": "The REST counterpart of the MCP tool `create_api_token`.",
+        "tags": ["Tokens"],
+        "security": [{ "bearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 60, "description": "What it is for, e.g. 'workshop upload'." },
+                  "scope": {
+                    "type": "string",
+                    "enum": ["read", "read+write"],
+                    "description": "`read` may only GET; `read+write` may change things (an upload needs it)."
+                  },
+                  "expiresInDays": {
+                    "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 365 }, { "type": "null" }],
+                    "description": "Its lifetime in days; null: it never expires (chosen on purpose)."
+                  }
+                },
+                "required": ["name", "scope", "expiresInDays"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "scope": { "type": "string", "enum": ["read", "read+write"] },
+                    "start": { "type": "string", "description": "The token's first characters, to recognise it by." },
+                    "created_at": { "type": "string" },
+                    "expires_at": { "type": ["string", "null"] },
+                    "last_used_at": { "type": ["string", "null"] },
+                    "token": { "type": "string", "description": "The token itself, shown this once." }
+                  },
+                  "required": ["id", "name", "scope", "start", "created_at", "expires_at", "last_used_at", "token"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/tokens/{id}": {
+      "delete": {
+        "operationId": "revokeApiToken",
+        "summary": "Revoke one of the caller's API tokens. Not with an API token (403)",
+        "description": "The REST counterpart of the MCP tool `revoke_api_token`.",
+        "tags": ["Tokens"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The token's id", "schema": { "type": "string" } }],
+        "responses": {
+          "204": { "description": "Revoked" },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": { "error": { "type": "string" }, "code": { "type": "string" } },
+        "required": ["error", "code"],
+        "additionalProperties": false
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API token (`preview_…`, made in the web app or with create_api_token; a `read` token may only GET), or an OAuth access token from this instance issued for this API (`resource=<base>/api/v1`). A token for /mcp is refused here."
+      }
+    }
+  }
+}
