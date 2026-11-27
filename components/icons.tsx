@@ -5,9 +5,12 @@ export {
   Check as SavedIcon,
   KeyRound as TokenIcon,
   LogOut as SignOutIcon,
+  Moon as DarkIcon,
   Plus as AddIcon,
   RotateCcw as ResetViewIcon,
   Settings as SettingsIcon,
+  Sun as LightIcon,
+  SunMoon as AutoThemeIcon,
   Trash2 as DeleteIcon,
   Users as CustomersIcon,
 } from "lucide-react";

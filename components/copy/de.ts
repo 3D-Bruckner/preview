@@ -9,6 +9,12 @@ export const de: Copy = {
     label: "Sprache",
     names: { en: "English", de: "Deutsch" },
   },
+  theme: {
+    label: "Darstellung",
+    auto: "Auto",
+    light: "Hell",
+    dark: "Dunkel",
+  },
   home: {
     title: "Kunden",
     empty: "Noch keine Kunden.",

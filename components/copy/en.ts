@@ -10,6 +10,12 @@ export const en = {
     label: "Language",
     names: { en: "English", de: "Deutsch" },
   },
+  theme: {
+    label: "Appearance",
+    auto: "Auto",
+    light: "Light",
+    dark: "Dark",
+  },
   home: {
     title: "Customers",
     empty: "No customers yet.",
