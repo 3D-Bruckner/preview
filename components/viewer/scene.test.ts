@@ -65,6 +65,7 @@ vi.mock("three/addons/loaders/3MFLoader.js", async () => {
 });
 
 const { openView, TURNTABLE_SECONDS } = await import("./scene");
+const { emptyFacts } = await import("@/backend/client");
 
 const mount = () => ({ clientWidth: 300, clientHeight: 300, appendChild: vi.fn() }) as unknown as HTMLElement;
 const callbacks = () => ({ onFirstFrame: vi.fn(), onRotating: vi.fn(), onError: vi.fn() });
@@ -88,7 +89,7 @@ afterEach(() => {
 describe("openView", () => {
   it("draws the first frame, then only when something moved, at no more than twice the CSS pixels", () => {
     const on = callbacks();
-    openView(mount(), new ArrayBuffer(0), { autoRotate: false, ...on });
+    openView(mount(), new ArrayBuffer(0), emptyFacts(), { autoRotate: false, ...on });
     expect(fake.renderer.setPixelRatio).toHaveBeenCalledWith(2);
     fake.renderer.loop!(0);
     expect(fake.renderer.render).toHaveBeenCalledTimes(1);
@@ -99,7 +100,7 @@ describe("openView", () => {
 
   it("turns by itself for a few seconds of the clock, then stops by itself (within the 5 seconds WCAG 2.2.2 allows)", () => {
     const on = callbacks();
-    openView(mount(), new ArrayBuffer(0), { autoRotate: true, ...on });
+    openView(mount(), new ArrayBuffer(0), emptyFacts(), { autoRotate: true, ...on });
     expect(on.onRotating).toHaveBeenLastCalledWith(true);
     fake.renderer.loop!(1000);
     fake.renderer.loop!(1000 + (TURNTABLE_SECONDS - 0.1) * 1000);
@@ -112,14 +113,14 @@ describe("openView", () => {
 
   it("doesn't turn for a visitor who turned motion off", () => {
     const on = callbacks();
-    openView(mount(), new ArrayBuffer(0), { autoRotate: false, ...on });
+    openView(mount(), new ArrayBuffer(0), emptyFacts(), { autoRotate: false, ...on });
     expect(fake.controls.autoRotate).toBe(false);
     expect(on.onRotating).not.toHaveBeenCalled();
   });
 
   it("stops the loop and reports a drawing error, also before the first frame", () => {
     const on = callbacks();
-    openView(mount(), new ArrayBuffer(0), { autoRotate: false, ...on });
+    openView(mount(), new ArrayBuffer(0), emptyFacts(), { autoRotate: false, ...on });
     fake.renderer.render.mockImplementation(() => {
       throw new Error("context lost");
     });
@@ -130,7 +131,7 @@ describe("openView", () => {
   });
 
   it("gives everything back on dispose: the loop, the observer, the controls, the meshes, the renderer and its context, the canvas", () => {
-    const view = openView(mount(), new ArrayBuffer(0), { autoRotate: true, ...callbacks() });
+    const view = openView(mount(), new ArrayBuffer(0), emptyFacts(), { autoRotate: true, ...callbacks() });
     const geometries = vi.spyOn(BufferGeometry.prototype, "dispose");
     const materials = vi.spyOn(Material.prototype, "dispose");
     view.dispose();

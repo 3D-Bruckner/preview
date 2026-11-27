@@ -91,7 +91,7 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
       </div>
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <ModelViewer src={shown.threemfUrl} label={t.viewer(view.model.title)} />
+        <ModelViewer src={shown.threemfUrl} label={t.viewer(view.model.title)} facts={shown.facts} />
 
         <aside className="grid gap-4">
           <Card id="versions" title={t.versions} aside={view.versions.length}>

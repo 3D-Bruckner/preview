@@ -1,15 +1,13 @@
 // The 3D view's scene, in the browser only: ModelViewer imports this module (and three with it) lazily, once the page runs, so a page
 // without a model never loads it. A 3MF from OpenSCAD or a slicer is Z-up and in millimetres; it is turned Y-up, set on the ground and
-// framed by its bounding sphere, so its units don't matter. A part keeps the colour the 3MF gives it (basematerials, colorgroups, which
-// three's loader reads); a part without one is a neutral light grey. Nothing here needs eval, a worker or a blob: URL, so the page's CSP
+// framed by its bounding sphere, so its units don't matter. Each mesh is tagged with its part of the version's facts and coloured by its
+// filament (parts.ts); a part the facts give no colour keeps the loader's (basematerials, colorgroups), else a neutral light grey. Nothing here needs eval, a worker or a blob: URL, so the page's CSP
 // has nothing to allow.
 import {
   Box3,
   DirectionalLight,
   HemisphereLight,
-  Loader,
   Mesh,
-  MeshStandardMaterial,
   NeutralToneMapping,
   PerspectiveCamera,
   PlaneGeometry,
@@ -21,12 +19,13 @@ import {
   VSMShadowMap,
   WebGLRenderer,
   type Material,
-  type MeshPhongMaterial,
   type Object3D,
   type Texture,
 } from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { ThreeMFLoader } from "three/addons/loaders/3MFLoader.js";
+import type { Facts } from "@/backend/client";
+import { tagParts, type PartMesh } from "./parts";
 
 export interface View {
   /** Back to the camera the view opened with. */
@@ -38,8 +37,6 @@ export interface View {
   dispose(): void;
 }
 
-/** The colour of a part the 3MF gives none. */
-const GREY = 0xc8ccd2;
 const FOV = 30;
 /**
  * The turntable: about 45 degrees in 4.5 seconds, then still. It starts by itself, so it must stop by itself within 5 seconds (WCAG
@@ -94,41 +91,16 @@ export async function fetchModel(src: string, signal: AbortSignal, onProgress: (
   return bytes.buffer;
 }
 
-/** The loader's material as a matte plastic, its colour (or vertex colours, or texture) kept; grey where the 3MF gives no colour. */
-function plastic(m: Material): Material {
-  if (m instanceof MeshStandardMaterial) return m;
-  const from = m as MeshPhongMaterial;
-  const out =
-    m.name === Loader.DEFAULT_MATERIAL_NAME
-      ? new MeshStandardMaterial({ color: GREY, roughness: 0.6, metalness: 0, flatShading: true })
-      : new MeshStandardMaterial({
-          name: from.name,
-          color: from.color,
-          map: from.map,
-          vertexColors: from.vertexColors,
-          transparent: from.transparent,
-          opacity: from.opacity,
-          roughness: 0.55,
-          metalness: 0,
-          flatShading: true,
-        });
-  m.dispose();
-  return out;
-}
-
-/** The 3MF as three objects, turned Y-up; throws if it is no 3MF or holds no mesh. */
-function parse(data: ArrayBuffer): Object3D {
+/** The 3MF as three objects, its meshes tagged with the facts' parts (parts.ts), turned Y-up; throws if it is no 3MF or holds no mesh. */
+function parse(data: ArrayBuffer, facts: Facts): { model: Object3D; parts: PartMesh[] } {
   const model = new ThreeMFLoader().parse(data);
+  if (!model) throw new Error("3MF holds no mesh");
+  const parts = tagParts(model, facts);
   let meshes = 0;
-  model?.traverse((o) => {
-    if (!(o instanceof Mesh)) return;
-    meshes++;
-    o.material = Array.isArray(o.material) ? o.material.map(plastic) : plastic(o.material);
-    o.castShadow = true;
-  });
-  if (!model || meshes === 0) throw new Error("3MF holds no mesh");
+  model.traverse((o) => void (o instanceof Mesh && meshes++));
+  if (meshes === 0) throw new Error("3MF holds no mesh");
   model.rotation.x = -Math.PI / 2;
-  return model;
+  return { model, parts };
 }
 
 /** Opens the view in `mount` (a canvas filling it): the model on a soft ground shadow, framed, turnable by touch, mouse and keyboard. */
@@ -142,8 +114,8 @@ export interface ViewOptions {
   onError: (error: unknown) => void;
 }
 
-export function openView(mount: HTMLElement, data: ArrayBuffer, options: ViewOptions): View {
-  const model = parse(data);
+export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, options: ViewOptions): View {
+  const { model } = parse(data, facts);
   const scene = new Scene();
 
   // On the ground (y = 0), centred over the origin.

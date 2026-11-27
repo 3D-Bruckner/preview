@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useCopy } from "@/components/CopyProvider";
 import { ProblemIcon, ResetViewIcon } from "@/components/icons";
 import type { View } from "@/components/viewer/scene";
+import type { Facts } from "@/backend/client";
 
 type State = "loading" | "ready" | "error";
 
@@ -11,12 +12,12 @@ type State = "loading" | "ready" | "error";
  * keyboard. It opens with a short turntable (a partial turn, then still; stopped by any touch, none for a visitor who turned motion off).
  * three loads only once the page runs. `data-state` and `data-rotating` on the view say what it is doing.
  */
-export function ModelViewer({ src, label }: { src: string; label: string }) {
+export function ModelViewer({ src, label, facts }: { src: string; label: string; facts: Facts }) {
   // A new file is a new view: its state starts over instead of showing the last one's.
-  return <Viewer key={src} src={src} label={label} />;
+  return <Viewer key={src} src={src} label={label} facts={facts} />;
 }
 
-function Viewer({ src, label }: { src: string; label: string }) {
+function Viewer({ src, label, facts }: { src: string; label: string; facts: Facts }) {
   const t = useCopy().customer;
   const hint = useId();
   const mount = useRef<HTMLDivElement>(null);
@@ -35,7 +36,7 @@ function Viewer({ src, label }: { src: string; label: string }) {
         const { fetchModel, openView } = await import("@/components/viewer/scene");
         const data = await fetchModel(src, abort.signal, setProgress);
         if (abort.signal.aborted) return;
-        opened = openView(el, data, {
+        opened = openView(el, data, facts, {
           autoRotate: !motion.matches,
           onFirstFrame: () => setState("ready"),
           onRotating: setRotating,
@@ -54,6 +55,8 @@ function Viewer({ src, label }: { src: string; label: string }) {
       opened?.dispose();
       view.current = null;
     };
+    // The facts come with the file (`src` changes with the version): a new view is made only for a new file.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   return (
