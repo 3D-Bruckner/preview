@@ -34,7 +34,17 @@ function parseTag(inner: string): Tag | null {
 /** Feeds text in pieces; a tag split between pieces is joined before it is read. */
 export class TagStream {
   private rest = "";
+  private decoder = new TextDecoder();
   constructor(private readonly onTag: (t: Tag) => void) {}
+
+  /** UTF-8 bytes; a piece with no "<" while no tag is open is text and dropped undecoded (a bomb of zeros costs only the inflating). */
+  pushBytes(bytes: Uint8Array): void {
+    if (!this.rest && bytes.indexOf(0x3c) < 0) {
+      this.decoder = new TextDecoder();
+      return;
+    }
+    this.push(this.decoder.decode(bytes, { stream: true }));
+  }
 
   push(chunk: string): void {
     let text = this.rest + chunk;
@@ -73,6 +83,7 @@ export class TagStream {
   }
 
   end(): void {
+    this.push(this.decoder.decode());
     this.rest = "";
   }
 }

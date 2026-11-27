@@ -7,6 +7,7 @@ import { createApiToken, listApiTokens, revokeApiToken, type RestCaller } from "
 import * as z from "zod";
 import { API_TOKEN_PREFIX } from "./accounts";
 import { createCustomer, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer, type Language } from "./customers";
+import { rereadFacts } from "./facts";
 import { createModel, listModels, updateModel } from "./models";
 import type { Outcome, Reason } from "./outcome";
 import type { Runtime } from "./runtime";
@@ -15,6 +16,7 @@ import {
   customerJson,
   customerPatchSchema,
   customerSchema,
+  factsReadSchema,
   modelInputSchema,
   modelOf,
   modelPatchSchema,
@@ -189,6 +191,18 @@ export const REST_OPS: Op<Runtime>[] = [
     ok: { status: 200, description: "The versions", schema: z.object({ versions: z.array(versionSchema) }) },
     errors: [401, 404],
     handle: ({ ctx, params }) => answer(listVersions(ctx, params.id!), 200, (v) => ({ versions: v.map(versionJson) })),
+  },
+  {
+    method: "POST",
+    path: "/versions/{id}/facts",
+    operationId: "rereadFacts",
+    tool: "reread_facts",
+    summary: "Read the version's 3MF again for its parts and filament colours",
+    tag: "Models",
+    params: { id: "The version's id" },
+    ok: { status: 200, description: "What was read", schema: factsReadSchema },
+    errors: [400, 401, 403, 404],
+    handle: ({ ctx, params }) => answer(rereadFacts(ctx, params.id!), 200, (v) => v),
   },
   // Tokens
   {

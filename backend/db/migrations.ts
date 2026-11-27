@@ -45,4 +45,10 @@ export const MIGRATIONS: Migration[] = [
       create index drawings_version on drawings(version_id);
     `,
   },
+  {
+    // A version's facts (backend/threemf: its parts and filament slots) as JSON, read once from its 3MF; null until read (the versions
+    // stored before this migration get theirs at the next start, fillMissingFacts).
+    name: "version_facts",
+    sql: `alter table versions add column facts text;`,
+  },
 ];

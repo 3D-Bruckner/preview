@@ -6,6 +6,9 @@ export function versionQueries({ q, all, run }: Exec) {
   return {
     insertVersion: (row: VersionRow) => void run(q.insertInto("versions").values(row)),
     insertDrawing: (row: DrawingRow) => void run(q.insertInto("drawings").values(row)),
+    setFacts: (id: string, facts: string | null) => void run(q.updateTable("versions").set({ facts }).where("id", "=", id)),
+    /** Every version's id and facts, for finding those to read (again). */
+    versionFacts: (): Pick<VersionRow, "id" | "facts">[] => all(q.selectFrom("versions").select(["id", "facts"]).orderBy("created_at")),
     version: (id: string): VersionRow | undefined => all(q.selectFrom("versions").selectAll().where("id", "=", id))[0],
     /** The highest version number a model has, null when it has none. */
     maxVersionNumber: (modelId: string): number | null =>

@@ -74,8 +74,11 @@ export const versionSchema = z.object({
   number: z.number().int(),
   note: z.string().nullable(),
   created_at: z.string(),
+  parts: z.number().int().nullable().describe("How many parts its 3MF has; null until its 3MF has been read (reread_facts)."),
   drawings: z.array(z.object({ id: ID, kind: z.enum(["png", "svg", "pdf"]) })),
 });
+
+export const factsReadSchema = z.object({ parts: z.number().int().describe("How many parts the version's 3MF has.") });
 
 export const customerJson = (base: string, c: Customer): z.infer<typeof customerSchema> => ({
   id: c.id,
@@ -105,6 +108,7 @@ export const versionJson = (v: Version): z.infer<typeof versionSchema> => ({
   number: v.number,
   note: v.note,
   created_at: v.createdAt,
+  parts: v.parts,
   drawings: v.drawings,
 });
 

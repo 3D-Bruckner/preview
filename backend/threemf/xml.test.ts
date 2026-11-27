@@ -41,6 +41,20 @@ describe("TagStream", () => {
     }
   });
 
+  it("gives the same tags from UTF-8 bytes split anywhere, multi-byte characters included", () => {
+    const text = '<o name="Spülé €"/>text ü<p v="ß"/>';
+    const bytes = new TextEncoder().encode(text);
+    const whole = collect(text);
+    for (let cut = 1; cut < bytes.length; cut++) {
+      const tags: Tag[] = [];
+      const s = new TagStream((t) => tags.push(t));
+      s.pushBytes(bytes.subarray(0, cut));
+      s.pushBytes(bytes.subarray(cut));
+      s.end();
+      expect(tags).toEqual(whole);
+    }
+  });
+
   it("keeps nothing of text between tags", () => {
     const tags: Tag[] = [];
     const s = new TagStream((t) => tags.push(t));

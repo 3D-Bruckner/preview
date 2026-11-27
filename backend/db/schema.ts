@@ -28,6 +28,8 @@ export interface VersionsTable {
   threemf_file: string;
   preview_file: string;
   created_at: string;
+  /** JSON of backend/threemf's Facts; null until read. */
+  facts: string | null;
 }
 
 export interface DrawingsTable {

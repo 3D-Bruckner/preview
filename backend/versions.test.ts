@@ -34,6 +34,7 @@ describe("listVersions", () => {
         threemf_file: `v${number}.3mf`,
         preview_file: `v${number}.png`,
         created_at: rt.clock().toISOString(),
+        facts: null,
       });
     }
     rt.store.insertDrawing({ id: "d1", version_id: "v2", file: "d1.svg", kind: "svg", position: 0 });

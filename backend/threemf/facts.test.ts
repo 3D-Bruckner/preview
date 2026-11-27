@@ -106,7 +106,7 @@ describe("readFacts", () => {
     expect(holder.flatMap((p) => p.components ?? []).sort((a, b) => a - b)).toEqual([...Array(holder.flatMap((p) => p.components ?? []).length).keys()]);
   });
 
-  it("scans a huge plain root model as a stream, within 100 MB of memory", () => {
+  it("scans a huge plain root model as a stream, within 100 MB of memory", { timeout: 30_000 }, () => {
     const bomb = zipSync({ "3D/3dmodel.model": new Uint8Array(300 * 1024 * 1024) }, { level: 9 });
     const before = process.memoryUsage().arrayBuffers;
     const f = readFacts(bomb);

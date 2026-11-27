@@ -22,6 +22,10 @@ Everything reaches the same domain code in `backend/`; the three ways in differ 
 - Domain code reaches the database only through `rt.store` (kysely builds the queries, better-sqlite3 runs them synchronously). A mutation runs in `mutation(rt, fn)`: one transaction, rolled back on a refusal.
 - Domain functions return an `Outcome` (`backend/outcome.ts`): the value, or `not_found` / `invalid` / `conflict` (REST 404/400/409) with an English message.
 
+## A version's facts
+
+`backend/threemf/` reads a 3MF's **facts** at upload: its parts and filament slots, never its meshes. A Bambu Studio project says per object which filament each of its parts prints in (`Metadata/model_settings.config`) and lists the slots (`Metadata/project_settings.config`, JSON); an object whose parts print in several filaments is one part per filament (key `<objectId>:<n>`). A plain 3MF gives one part per object, coloured by its base material or colour group. Entries are found in the zip's central directory and inflated piece by piece with a bound (16 MiB for the configs, 1 GiB for the root model, which is scanned as a stream by an attributes-only tag scanner, `xml.ts`); nothing under `3D/Objects/` is read on the server. The facts are JSON in `versions.facts`; a version stored before they existed, or read by an older reader (`READER`), is read at the next start (`fillMissingFacts`, from `instrumentation.ts`, logging the counts), and `reread_facts` reads one again.
+
 ## The brand
 
 `backend/config.ts` reads the brand of whoever runs the instance (`config.brand`: name, link, accent colour, logo, imprint and privacy links); the product has neutral defaults and names no operator. `app/[lang]/layout.tsx` puts the name in the title and the accent on `<html>` as `--brand-accent` (`app/globals.css` derives the hover and the dark mode's form from it), and every page's footer links the imprint and the privacy policy when they are set (`components/BrandFooter.tsx`). The headers show the name (`components/BrandName.tsx`), linked when a brand URL is set.

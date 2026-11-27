@@ -523,6 +523,10 @@
                           "number": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
                           "note": { "type": ["string", "null"] },
                           "created_at": { "type": "string" },
+                          "parts": {
+                            "anyOf": [{ "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }, { "type": "null" }],
+                            "description": "How many parts its 3MF has; null until its 3MF has been read (reread_facts)."
+                          },
                           "drawings": {
                             "type": "array",
                             "items": {
@@ -533,7 +537,7 @@
                             }
                           }
                         },
-                        "required": ["id", "model_id", "number", "note", "created_at", "drawings"],
+                        "required": ["id", "model_id", "number", "note", "created_at", "parts", "drawings"],
                         "additionalProperties": false
                       }
                     }
@@ -546,6 +550,51 @@
           },
           "401": {
             "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/versions/{id}/facts": {
+      "post": {
+        "operationId": "rereadFacts",
+        "summary": "Read the version's 3MF again for its parts and filament colours",
+        "description": "The REST counterpart of the MCP tool `reread_facts`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The version's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "What was read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "parts": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "How many parts the version's 3MF has."
+                    }
+                  },
+                  "required": ["parts"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }

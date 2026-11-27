@@ -71,7 +71,7 @@ function readRoot(bytes: Uint8Array, all: ReturnType<typeof entries>): Root {
     }
   };
   const stream = new TagStream(onTag);
-  if (!scanEntry(bytes, ROOT, ROOT_MAX, (s) => stream.push(s), all)) throw new FactsError(`threemf: no ${ROOT}`);
+  if (!scanEntry(bytes, ROOT, ROOT_MAX, (d) => stream.pushBytes(d), all)) throw new FactsError(`threemf: no ${ROOT}`);
   stream.end();
   return root;
 }

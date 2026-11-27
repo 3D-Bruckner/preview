@@ -11,7 +11,7 @@ preview's MCP server is at `<PUBLIC_URL>/mcp` (Streamable HTTP, POST only), for 
 - **The server's instructions** (`MCP_INSTRUCTIONS`) say what the app is, that customers never sign in, and that versions are uploaded with the REST multipart route (`POST /api/models/{id}/versions`) from the workshop, not over MCP; every version is visible on the customer's link at once.
 - **Links.** Every customer and model result carries `link_url` (`<PUBLIC_URL>/k/<token>` for a customer, `/k/<token>/<modelId>` for a model; null once the customer's link is revoked) and `admin_url` (`/customers/<id>`, `/models/<id>` in the web app).
 
-## The 13 tools
+## The 14 tools
 
 ### Customers
 
@@ -31,7 +31,8 @@ preview's MCP server is at `<PUBLIC_URL>/mcp` (Streamable HTTP, POST only), for 
 | `list_models`   | `customerId?`                                      | `models`, newest first, each with `link_url` and `admin_url` | `create_model` when there are none; `list_versions` for a model's versions                   |
 | `create_model`  | `customerId`, `title`, `description?`              | the model                                                    | upload versions with `POST /api/models/{id}/versions`; its link, or that the link is revoked |
 | `update_model`  | `id`, any of `title`, `description` (empty clears) | the model                                                    | the customer sees it on their next visit                                                     |
-| `list_versions` | `modelId`                                          | `versions`, newest first: number, note, drawings             | with none, how to upload one; otherwise that the customer sees all of them                   |
+| `list_versions` | `modelId`                                          | `versions`, newest first: number, note, parts, drawings      | with none, how to upload one; otherwise that the customer sees all of them                   |
+| `reread_facts`  | `version_id`                                       | `parts`: how many the 3MF has                                | how many parts the customer's page lists now                                                 |
 
 ### API tokens
 

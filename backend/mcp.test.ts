@@ -3,7 +3,12 @@
 import { mcpRoute, type McpContext, type Who } from "next-app-kit/mcp";
 import { callTool, signedInCookie } from "next-app-kit/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { join } from "node:path";
+import { createCustomer } from "./customers";
+import { addVersion } from "./files";
 import { MCP_INSTRUCTIONS, mcpContext } from "./mcp";
+import { createModel } from "./models";
+import type { Outcome } from "./outcome";
 import { OWNER, testRuntime, type TestRuntime } from "./testing/runtime";
 
 let rt: TestRuntime;
@@ -177,3 +182,22 @@ describe("models", () => {
     expect(await refusal("list_versions", { modelId: "nope" }, me)).toMatch(/No model/);
   });
 });
+
+describe("versions", () => {
+  it("reread_facts reads a version's 3MF again and says what it found", async () => {
+    const me = await owner();
+    const c = value(createCustomer(rt, { name: "A" }));
+    const m = value(createModel(rt, { customerId: c.id, title: "Spulenhalter" }));
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    const v = value(await addVersion(rt, m.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    const r = await tool<{ parts: number }>("reread_facts", { version_id: v.id }, me);
+    expect(r.parts).toBe(3);
+    expect(said(r)).toMatch(/3 parts/);
+    expect(await refusal("reread_facts", { version_id: "nope" }, me)).toMatch(/nope/);
+  });
+});
+
+function value<T>(o: Outcome<T>): T {
+  if (!o.ok) throw new Error(`expected ok, got ${o.reason}: ${o.message}`);
+  return o.value;
+}

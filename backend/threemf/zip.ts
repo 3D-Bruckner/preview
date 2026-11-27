@@ -78,12 +78,10 @@ export function readEntry(bytes: Uint8Array, name: string, maxBytes: number, all
   return out;
 }
 
-/** One entry's text in pieces, never whole; false when the zip has none of that name. */
-export function scanEntry(bytes: Uint8Array, name: string, maxBytes: number, onText: (s: string) => void, all = entries(bytes)): boolean {
+/** One entry's bytes in pieces, never whole (each piece is valid only during the call); false when the zip has none of that name. */
+export function scanEntry(bytes: Uint8Array, name: string, maxBytes: number, onBytes: (d: Uint8Array) => void, all = entries(bytes)): boolean {
   const e = all.get(name);
   if (!e) return false;
-  const dec = new TextDecoder();
-  inflate(bytes, e, maxBytes, (d) => onText(dec.decode(d, { stream: true })));
-  onText(dec.decode());
+  inflate(bytes, e, maxBytes, onBytes);
   return true;
 }

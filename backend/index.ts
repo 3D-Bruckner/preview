@@ -17,6 +17,7 @@ export {
   type CustomerVersionView,
   type CustomerView,
 } from "./customerview";
+export { fillMissingFacts } from "./facts";
 export { addVersion, UPLOAD_TYPES, type UploadedFile } from "./files";
 export { healthResponse } from "./health";
 export { log } from "./log";

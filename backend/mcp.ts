@@ -7,6 +7,7 @@ import { defineTool, refuse, type McpContext, type Tool } from "next-app-kit/mcp
 import { createApiToken, listApiTokens, revokeApiToken } from "next-app-kit/tokens";
 import * as z from "zod";
 import { createCustomer, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer } from "./customers";
+import { rereadFacts } from "./facts";
 import { createModel, listModels, updateModel } from "./models";
 import type { Outcome } from "./outcome";
 import type { Runtime } from "./runtime";
@@ -15,6 +16,7 @@ import {
   customerJson,
   customerPatchSchema,
   customerSchema,
+  factsReadSchema,
   modelInputSchema,
   modelOf,
   modelPatchSchema,
@@ -207,6 +209,19 @@ export function mcpTools(rt: Runtime): Tool[] {
           versions: v.value.map(versionJson),
           guidance: [v.value.length === 0 ? `No versions yet. ${UPLOAD(modelId)}` : `The customer sees all ${v.value.length} on their link, the newest first.`],
         };
+      },
+    }),
+    defineTool({
+      name: "reread_facts",
+      description:
+        "Read a version's 3MF again for its parts and filament colours (done at upload and at start; needed only after preview's 3MF reader changed, or when a customer's page lists the parts wrongly).",
+      input: z.object({ version_id: z.string().min(1).describe("The version's id (list_versions).") }),
+      output: factsReadSchema,
+      annotations: WRITE,
+      handle: async ({ version_id }) => {
+        const r = rereadFacts(rt, version_id);
+        if (!r.ok) return refused(r);
+        return { ...r.value, guidance: [`The version has ${r.value.parts} parts now; the customer's page lists them on its next load.`] };
       },
     }),
     // Tokens

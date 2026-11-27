@@ -6,6 +6,7 @@ import { checkOpsMirrorTools, openApiDocument, restRoute } from "next-app-kit/re
 import { signedInCookie } from "next-app-kit/testing";
 import { createApiToken, type RestCaller } from "next-app-kit/tokens";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { addVersion } from "./files";
 import { mcpContext } from "./mcp";
 import { OPEN_API, openApiFile, REST_OPS } from "./rest";
 import { OWNER, testRuntime, type TestRuntime } from "./testing/runtime";
@@ -133,5 +134,24 @@ describe("customers and models", () => {
     expect((await json<{ link_url: unknown }>(revoked)).link_url).toBeNull();
     const renewed = await call("POST", `/customers/${c.id}/link`, undefined, me);
     expect((await json<{ link_url: unknown }>(renewed)).link_url).toMatch(/\/k\//);
+  });
+});
+
+describe("versions", () => {
+  it("POST /versions/{id}/facts reads the 3MF again; a read token gets 403", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const c = await json<{ id: string }>(await call("POST", "/customers", { name: "Ada" }, me));
+    const m = await json<{ id: string }>(await call("POST", "/models", { customerId: c.id, title: "Spulenhalter" }, me));
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    const v = await addVersion(rt, m.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] });
+    if (!v.ok) throw new Error(v.message);
+    const r = await call("POST", `/versions/${v.value.id}/facts`, undefined, me);
+    expect(r.status).toBe(200);
+    expect(await json(r)).toEqual({ parts: 3 });
+    expect((await call("POST", "/versions/nope/facts", undefined, me)).status).toBe(404);
+    const auth = await rt.auth();
+    const reader = await createApiToken(auth, await owner(), { name: "reader", scope: "read", expiresInDays: null });
+    if ("error" in reader) throw new Error(reader.error);
+    expect((await withToken("POST", `/versions/${v.value.id}/facts`, reader.token)).status).toBe(403);
   });
 });

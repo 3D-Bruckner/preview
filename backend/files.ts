@@ -7,6 +7,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } 
 import { join } from "node:path";
 import { unzipSync } from "fflate";
 import { invalid, notFound, ok, type Outcome } from "./outcome";
+import { FactsError, readFacts, type Facts } from "./threemf";
 import { mutation, type Runtime } from "./runtime";
 import type { Version } from "./versions";
 
@@ -63,6 +64,13 @@ export async function addVersion(
   if (!rt.store.model(modelId)) return notFound(`No model ${modelId}.`);
   const threemf = readFileSync(input.threemf.path);
   if (!isThreeMf(threemf)) return invalid("threemf: not a 3MF (a zip with 3D/3dmodel.model)");
+  let facts: Facts;
+  try {
+    facts = readFacts(threemf);
+  } catch (e) {
+    if (e instanceof FactsError) return invalid(e.message);
+    throw e;
+  }
   const preview = readFileSync(input.preview.path);
   if (!isPng(preview)) return invalid("preview: not a PNG");
   const drawings: { id: string; kind: DrawingKind; path: string }[] = [];
@@ -86,9 +94,18 @@ export async function addVersion(
       const number = (rt.store.maxVersionNumber(modelId) ?? 0) + 1;
       const now = rt.clock().toISOString();
       const note = input.note?.trim() || null;
-      rt.store.insertVersion({ id, model_id: modelId, number, note, threemf_file: "model.3mf", preview_file: "preview.png", created_at: now });
+      rt.store.insertVersion({
+        id,
+        model_id: modelId,
+        number,
+        note,
+        threemf_file: "model.3mf",
+        preview_file: "preview.png",
+        created_at: now,
+        facts: JSON.stringify(facts),
+      });
       drawings.forEach((d, position) => rt.store.insertDrawing({ id: d.id, version_id: id, file: `${d.id}.${d.kind}`, kind: d.kind, position: position + 1 }));
-      return ok({ id, modelId, number, note, createdAt: now, drawings: drawings.map((d) => ({ id: d.id, kind: d.kind })) });
+      return ok({ id, modelId, number, note, createdAt: now, parts: facts.parts.length, drawings: drawings.map((d) => ({ id: d.id, kind: d.kind })) });
     });
     stored = out.ok;
     return out;
