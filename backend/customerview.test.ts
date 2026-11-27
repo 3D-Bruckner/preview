@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCustomer, renewLink, revokeLink, type Customer } from "./customers";
 import { customerFile, customerLanguage, customerModel, customerView } from "./customerview";
 import { addVersion } from "./files";
+import { emptyFacts } from "./threemf";
 import { createModel, type Model } from "./models";
 import type { Outcome } from "./outcome";
 import { testRuntime, type TestRuntime } from "./testing/runtime";
@@ -51,7 +52,7 @@ describe("customerView", () => {
         id: ramp.id,
         title: "Ramp",
         description: "For the step",
-        latest: { number: 2, createdAt: v2.createdAt, note: "2 cm wider", previewUrl: `${files(a.link!, v2.id)}/preview.png` },
+        latest: { number: 2, createdAt: v2.createdAt, note: "2 cm wider", previewUrl: `${files(a.link!, v2.id)}/preview.png`, parts: 1 },
       },
     ]);
   });
@@ -94,6 +95,22 @@ describe("customerModel", () => {
     const old = a.link!;
     value(renewLink(rt, a.id));
     expect(customerModel(rt, old, ramp.id)).toBeNull();
+  });
+});
+
+describe("a version's facts on the customer's pages", () => {
+  it("carry the parts, and count them on the overview", async () => {
+    const holder = value(createModel(rt, { customerId: a.id, title: "Spool holder" }));
+    value(await addVersion(rt, holder.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    expect(customerView(rt, a.link!)!.models.find((m) => m.id === holder.id)!.latest.parts).toBe(3);
+    const [shown] = customerModel(rt, a.link!, holder.id)!.versions;
+    expect(shown!.facts.parts.map((p) => p.key)).toEqual(["2:0", "4:0", "4:1"]);
+  });
+
+  it("are empty, never an error, for a version not read yet", () => {
+    rt.store.setFacts(v2.id, null);
+    expect(customerView(rt, a.link!)!.models[0]!.latest.parts).toBeNull();
+    expect(customerModel(rt, a.link!, ramp.id)!.versions[0]!.facts).toEqual(emptyFacts());
   });
 });
 

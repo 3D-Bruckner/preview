@@ -7,8 +7,8 @@ export async function register(): Promise<void> {
   const rt = runtime();
   log.info({ publicUrl: rt.config.publicUrl, allowed: rt.config.allowedEmails.length, devUser: Boolean(rt.config.devUser) }, "preview started");
   // The versions stored before their facts existed (or read by an older reader) get them now; a large 3MF takes seconds, after the start.
-  setImmediate(() => {
+  setTimeout(() => {
     const counts = fillMissingFacts(rt);
     if (counts.read || counts.failed) log.info(counts, "facts read for stored versions");
-  });
+  }, 0);
 }

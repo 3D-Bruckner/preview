@@ -35,6 +35,15 @@ async function seed() {
 
 const NOT_FOUND_PATH = "/does-not-exist";
 
+test("the overview counts each model's parts", async ({ page }) => {
+  const c = customer(`Clara ${Math.random().toString(36).slice(2, 6)}`);
+  await version(model(c, "Spulenhalter"), { threemf: "plates.3mf" });
+  await version(model(c, "Rampe"));
+  await page.goto(`/k/${c.link}`);
+  await expect(page.getByRole("link", { name: /Spulenhalter/ })).toContainText("3 Teile");
+  await expect(page.getByRole("link", { name: /Rampe/ })).toContainText("1 Teil");
+});
+
 /**
  * A page as a visitor gets it: its status, language, title and what its body shows (the header, main and footer as rendered; the
  * framework's own scripts and its dev tools left out, since their chunks differ by route).

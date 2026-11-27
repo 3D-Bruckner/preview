@@ -185,6 +185,7 @@ export const en = {
     forName: (name: string) => `For ${name}`,
     lead: "Everything designed for you is here. Each new version appears as soon as it is ready.",
     modelCount: (n: number) => (n === 1 ? "1 model" : `${n} models`),
+    partCount: (n: number) => (n === 1 ? "1 part" : `${n} parts`),
     lastChanged: "last changed",
     newVersion: "New version",
     latestNote: "Latest:",

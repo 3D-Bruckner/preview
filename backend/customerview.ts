@@ -2,13 +2,21 @@
 // customerByToken, the one gate (conventions: architecture/one-gate-for-every-read), and reaches a model, a version or a file only through
 // that customer: an id from the URL that is not theirs is answered like an unknown token, with null (the page's 404).
 import { customerByToken, type Customer, type Language } from "./customers";
+import { factsOf } from "./facts";
 import { versionFile } from "./files";
+import { emptyFacts, type Facts } from "./threemf";
 import type { Runtime } from "./runtime";
 
 export type CustomerView = {
   customer: { name: string };
   /** The customer's models that have a version, newest first; a model with none has nothing to show yet. */
-  models: { id: string; title: string; description: string | null; latest: { number: number; createdAt: string; note: string | null; previewUrl: string } }[];
+  models: {
+    id: string;
+    title: string;
+    description: string | null;
+    /** `parts`: how many its 3MF has; null until its facts are read. */
+    latest: { number: number; createdAt: string; note: string | null; previewUrl: string; parts: number | null };
+  }[];
 };
 
 export type CustomerVersionView = {
@@ -17,6 +25,8 @@ export type CustomerVersionView = {
   createdAt: string;
   threemfUrl: string;
   previewUrl: string;
+  /** Its parts and filament slots; empty (shown as a whole, no parts list) until read. */
+  facts: Facts;
   drawings: { url: string; kind: "png" | "svg" | "pdf" }[];
 };
 
@@ -42,6 +52,7 @@ function versionsOf(rt: Runtime, token: string, modelId: string): CustomerVersio
       createdAt: v.created_at,
       threemfUrl: `${base}/model.3mf`,
       previewUrl: `${base}/preview.png`,
+      facts: factsOf(v) ?? emptyFacts(),
       drawings: drawings.filter((d) => d.version_id === v.id).map((d) => ({ url: `${base}/${d.id}.${d.kind}`, kind: d.kind })),
     };
   });
@@ -59,7 +70,13 @@ export function customerView(rt: Runtime, token: string): CustomerView | null {
       id: m.id,
       title: m.title,
       description: m.description,
-      latest: { number: latest.number, createdAt: latest.created_at, note: latest.note, previewUrl: `${filesUrl(token, latest.id)}/preview.png` },
+      latest: {
+        number: latest.number,
+        createdAt: latest.created_at,
+        note: latest.note,
+        previewUrl: `${filesUrl(token, latest.id)}/preview.png`,
+        parts: factsOf(latest)?.parts.length ?? null,
+      },
     });
   }
   return { customer: { name: customer.name }, models };
