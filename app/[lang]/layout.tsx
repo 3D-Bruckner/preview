@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import type { CSSProperties } from "react";
 import { documentMetadata, VIEWPORT } from "@/app/_lib/document";
@@ -7,7 +6,7 @@ import { runtime } from "@/app/_lib/runtime";
 import { BrandFooter } from "@/components/BrandFooter";
 import { CopyProvider } from "@/components/CopyProvider";
 import { isLocale } from "@/components/copy";
-import { THEME_COOKIE, themeOf } from "@/components/theme";
+import { currentTheme } from "@/app/_lib/theme";
 import "@fontsource-variable/archivo";
 import "@fontsource-variable/hanken-grotesk";
 import "../globals.css";
@@ -30,7 +29,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const brand = runtime().config.brand;
   // The theme switch's choice (components/ThemeSwitch.tsx): light and dark set data-theme, auto sets none and globals.css follows the system,
   // so the first paint is already right.
-  const theme = themeOf((await cookies()).get(THEME_COOKIE)?.value);
+  const theme = await currentTheme();
   // The header and <main> are the route groups' own: (app) for the signed-in pages, (public) for sign-in and consent. The accent is the
   // setting's (globals.css derives the rest from it); the footer is every page's.
   return (

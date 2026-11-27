@@ -29,7 +29,7 @@ export function Dialog({
       ref={ref}
       aria-labelledby={titleId}
       onClose={onClose}
-      className={`m-auto w-[calc(100%-2rem)] rounded-xl border border-border bg-paper p-5 text-ink ${wide ? "max-w-2xl" : "max-w-md"}`}
+      className={`m-auto w-[calc(100%-2rem)] rounded-md border border-border bg-paper p-5 text-ink ${wide ? "max-w-2xl" : "max-w-md"}`}
     >
       {open && (
         <>
@@ -67,14 +67,14 @@ export function ConfirmDialog({
     <Dialog open={open} title={title} onClose={onClose}>
       <div className="mt-3 space-y-2">{text}</div>
       <div className="mt-5 flex justify-end gap-3">
-        <button type="button" autoFocus onClick={onClose} className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 font-medium">
+        <button type="button" autoFocus onClick={onClose} className="inline-flex min-h-11 items-center rounded-md border border-line px-4 font-medium">
           {cancel}
         </button>
         <button
           type="button"
           disabled={busy}
           onClick={onConfirm}
-          className="inline-flex min-h-11 items-center rounded-lg bg-danger px-4 font-medium text-paper disabled:opacity-50"
+          className="inline-flex min-h-11 items-center rounded-md bg-danger px-4 font-medium text-paper disabled:opacity-50"
         >
           {confirm}
         </button>

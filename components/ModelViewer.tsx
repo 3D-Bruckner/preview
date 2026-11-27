@@ -59,7 +59,7 @@ function Viewer({ src, label }: { src: string; label: string }) {
   return (
     <div className="mt-5">
       <div
-        className="relative aspect-square w-full overflow-hidden rounded-xl border border-border bg-surface"
+        className="relative aspect-square w-full overflow-hidden rounded-md border border-border bg-surface"
         style={{ backgroundImage: "radial-gradient(circle at 50% 38%, var(--bg), var(--surface) 72%)" }}
       >
         {/* The canvas goes in here (components/viewer/scene.ts). */}
@@ -75,7 +75,7 @@ function Viewer({ src, label }: { src: string; label: string }) {
           onKeyDown={(e) => {
             if (!e.altKey && !e.ctrlKey && !e.metaKey && view.current?.key(e.key)) e.preventDefault();
           }}
-          className="absolute inset-0 cursor-grab rounded-xl outline-offset-[-3px] active:cursor-grabbing"
+          className="absolute inset-0 cursor-grab rounded-md outline-offset-[-3px] active:cursor-grabbing"
         />
         {state === "loading" && (
           <div role="status" className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-muted">

@@ -23,7 +23,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
       {customers.length === 0 ? (
         <p className="mt-4 text-muted">{t.home.empty}</p>
       ) : (
-        <ul className="mt-4 divide-y divide-border rounded-xl border border-border">
+        <ul className="mt-4 divide-y divide-border rounded-md border border-border">
           {customers.map((c) => (
             <li key={c.id}>
               <Link href={`/customers/${c.id}`} className="flex min-h-11 flex-col p-3 hover:bg-surface">

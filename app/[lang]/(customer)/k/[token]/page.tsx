@@ -29,7 +29,7 @@ export default async function CustomerPage({ params }: PageProps<"/[lang]/k/[tok
         <ul className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
           {view.models.map((m) => (
             <li key={m.id}>
-              <Link href={`/k/${token}/${m.id}`} className="block overflow-hidden rounded-xl border border-border bg-surface hover:border-line">
+              <Link href={`/k/${token}/${m.id}`} className="block overflow-hidden rounded-md border border-border bg-surface hover:border-line">
                 {/* eslint-disable-next-line @next/next/no-img-element -- the customer's own file route, private */}
                 <img src={m.latest.previewUrl} alt="" loading="lazy" className="aspect-square w-full bg-paper object-contain" />
                 <span className="block p-3">

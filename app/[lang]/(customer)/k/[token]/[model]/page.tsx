@@ -40,7 +40,7 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
         <h2 id="versions" className={ui.h2}>
           {t.versions}
         </h2>
-        <ol className="mt-2 divide-y divide-border rounded-xl border border-border">
+        <ol className="mt-2 divide-y divide-border rounded-md border border-border">
           {view.versions.map((v) => {
             const current = v.number === shown.number;
             return (
@@ -79,7 +79,7 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
                   </a>
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element -- the customer's own file route, private; an SVG must stay an <img>
-                  <img src={d.url} alt={t.drawing(i + 1)} loading="lazy" className="w-full rounded-xl border border-border bg-white" />
+                  <img src={d.url} alt={t.drawing(i + 1)} loading="lazy" className="w-full rounded-md border border-border bg-white" />
                 )}
               </li>
             ))}

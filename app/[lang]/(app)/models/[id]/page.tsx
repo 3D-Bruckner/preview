@@ -56,7 +56,7 @@ export default async function ModelAdminPage({ params }: PageProps<"/[lang]/mode
         {versions.value.length === 0 ? (
           <p className="mt-2 text-muted">{t.noVersions}</p>
         ) : (
-          <ul className="mt-2 divide-y divide-border rounded-xl border border-border">
+          <ul className="mt-2 divide-y divide-border rounded-md border border-border">
             {versions.value.map((v) => (
               <li key={v.id} className="p-3">
                 <span className="font-medium">{copyFor(lang).admin.customer.version(v.number)}</span>
