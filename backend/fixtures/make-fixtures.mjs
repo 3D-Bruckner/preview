@@ -5,7 +5,12 @@
 // - keychain.3mf: a valid 3MF with two objects, each a box, one red and one blue through basematerials' displaycolor.
 // - preview.png: a valid 8×8 PNG.
 // - not-a-3mf.3mf: a zip that has no 3D/3dmodel.model.
-import { writeFileSync } from "node:fs";
+// - plates.3mf: a Bambu Studio-style project with 2 plates. Root objects 2 "Halter" (one component, object 1: a 20 mm box in
+//   3D/Objects/object_1.model) and 4 "Spule" (components 3, 5, 7 of 3D/Objects/object_2.model: 10 mm boxes at x 0, 12 and 24; ids unique
+//   across the files, as Bambu Studio writes them), build items 2 at x 0 and 4 at x 300; Metadata/model_settings.config: Spule's part 3 on
+//   extruder 2, part 5 on the object's extruder 1, part 7 a modifier; Metadata/project_settings.config (JSON): slots #00AE42 PLA and
+//   #FFFFFFFF PETG; Metadata/plate_1.png and plate_2.png (the preview.png below).
+import { readFileSync, writeFileSync } from "node:fs";
 import { crc32, deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { strToU8, zipSync } from "fflate";
@@ -76,6 +81,26 @@ writeFileSync(
   ),
 );
 
+const meshObject = (id, x0, size) => {
+  const m = box(x0, size);
+  return `<object id="${id}" type="model"><mesh><vertices>${m.vertices}</vertices><triangles>${m.triangles}</triangles></mesh></object>`;
+};
+const subModel = (objects) =>
+  `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources>${objects}</resources><build/></model>`;
+const component = (path, id) => `<component p:path="${path}" objectid="${id}" transform="1 0 0 0 1 0 0 0 1 0 0 0"/>`;
+const platesRoot = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" xmlns:p="http://schemas.microsoft.com/3dmanufacturing/production/2015/06" requiredextensions="p"><resources><object id="2" type="model"><components>${component("/3D/Objects/object_1.model", 1)}</components></object><object id="4" type="model"><components>${[3, 5, 7].map((i) => component("/3D/Objects/object_2.model", i)).join("")}</components></object></resources><build><item objectid="2" transform="1 0 0 0 1 0 0 0 1 0 0 0" printable="1"/><item objectid="4" transform="1 0 0 0 1 0 0 0 1 300 0 0" printable="1"/></build></model>`;
+const meta = (key, value) => `<metadata key="${key}" value="${value}"/>`;
+const modelSettings = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <object id="2">${meta("name", "Halter")}${meta("extruder", "1")}<part id="1" subtype="normal_part">${meta("name", "Halter")}</part></object>
+  <object id="4">${meta("name", "Spule")}${meta("extruder", "1")}<part id="3" subtype="normal_part">${meta("name", "Rand")}${meta("extruder", "2")}</part><part id="5" subtype="normal_part">${meta("name", "Kern")}</part><part id="7" subtype="modifier_part">${meta("name", "Modifier")}${meta("extruder", "2")}</part></object>
+  <plate>${meta("plater_id", "1")}${meta("plater_name", "Halter")}${meta("thumbnail_file", "Metadata/plate_1.png")}<model_instance>${meta("object_id", "2")}${meta("instance_id", "0")}</model_instance></plate>
+  <plate>${meta("plater_id", "2")}${meta("plater_name", "")}<model_instance>${meta("object_id", "4")}${meta("instance_id", "0")}</model_instance></plate>
+</config>`;
+const projectSettings = JSON.stringify({ filament_colour: ["#00AE42", "#FFFFFFFF"], filament_type: ["PLA", "PETG"] }, null, 4);
+
 writeFileSync(out("not-a-3mf.3mf"), zipSync({ "readme.txt": strToU8("a zip, but no model in it") }));
 
 /** One PNG chunk: length, type, data, CRC. */
@@ -101,4 +126,20 @@ writeFileSync(
     chunk("IDAT", deflateSync(Buffer.concat(Array.from({ length: 8 }, () => row)))),
     chunk("IEND", Buffer.alloc(0)),
   ]),
+);
+
+const png = readFileSync(out("preview.png"));
+writeFileSync(
+  out("plates.3mf"),
+  zipSync({
+    "[Content_Types].xml": strToU8(CONTENT_TYPES),
+    "_rels/.rels": strToU8(RELS),
+    "3D/3dmodel.model": strToU8(platesRoot),
+    "3D/Objects/object_1.model": strToU8(subModel(meshObject(1, 0, 20))),
+    "3D/Objects/object_2.model": strToU8(subModel(meshObject(3, 0, 10) + meshObject(5, 12, 10) + meshObject(7, 24, 10))),
+    "Metadata/model_settings.config": strToU8(modelSettings),
+    "Metadata/project_settings.config": strToU8(projectSettings),
+    "Metadata/plate_1.png": png,
+    "Metadata/plate_2.png": png,
+  }),
 );
