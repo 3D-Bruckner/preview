@@ -257,4 +257,17 @@ test.describe("on a desktop", () => {
     expect(aside!.x).toBeGreaterThan(viewer!.x + viewer!.width - 1);
     await expect(page.getByRole("complementary").getByRole("region", { name: "Versionen" })).toContainText("angezeigt");
   });
+
+  test("the header, the page and the footer share one left edge", async ({ page }) => {
+    const { a } = await seed();
+    await page.goto(`/k/${a.link}`);
+    const left = async (sel: string) =>
+      await page
+        .locator(sel)
+        .first()
+        .evaluate((e) => e.getBoundingClientRect().left + parseFloat(getComputedStyle(e).paddingLeft));
+    const main = await left("body > main");
+    expect(await left("body > header > div")).toBe(main);
+    expect(await left("body > footer > nav")).toBe(main);
+  });
 });
