@@ -8,7 +8,8 @@ type State = "loading" | "ready" | "error";
 
 /**
  * The 3D view of a model's 3MF (`src`, the customer's own file route), named `label` for a screen reader. Turned by touch, mouse or
- * keyboard; a slow turntable until the visitor moves it, none for a visitor who turned motion off. three loads only once the page runs.
+ * keyboard. It opens with a short turntable (a partial turn, then still; stopped by any touch, none for a visitor who turned motion off).
+ * three loads only once the page runs. `data-state` and `data-rotating` on the view say what it is doing.
  */
 export function ModelViewer({ src, label }: { src: string; label: string }) {
   // A new file is a new view: its state starts over instead of showing the last one's.
@@ -22,6 +23,7 @@ function Viewer({ src, label }: { src: string; label: string }) {
   const view = useRef<View | null>(null);
   const [state, setState] = useState<State>("loading");
   const [progress, setProgress] = useState<number | null>(null);
+  const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
     const el = mount.current!;
@@ -33,7 +35,12 @@ function Viewer({ src, label }: { src: string; label: string }) {
         const { fetchModel, openView } = await import("@/components/viewer/scene");
         const data = await fetchModel(src, abort.signal, setProgress);
         if (abort.signal.aborted) return;
-        opened = openView(el, data, { autoRotate: !motion.matches, onFirstFrame: () => setState("ready") });
+        opened = openView(el, data, {
+          autoRotate: !motion.matches,
+          onFirstFrame: () => setState("ready"),
+          onRotating: setRotating,
+          onError: () => setState("error"),
+        });
         view.current = opened;
       } catch {
         if (!abort.signal.aborted) setState("error");
@@ -63,6 +70,7 @@ function Viewer({ src, label }: { src: string; label: string }) {
           aria-describedby={hint}
           data-threemf={src}
           data-state={state}
+          data-rotating={rotating && state === "ready"}
           tabIndex={state === "ready" ? 0 : -1}
           onKeyDown={(e) => {
             if (!e.altKey && !e.ctrlKey && !e.metaKey && view.current?.key(e.key)) e.preventDefault();
@@ -78,7 +86,7 @@ function Viewer({ src, label }: { src: string; label: string }) {
           </div>
         )}
         {state === "error" && (
-          <div role="alert" className="absolute inset-0 flex items-center justify-center gap-2 p-8 text-center text-muted">
+          <div role="alert" className="absolute inset-0 flex bg-surface items-center justify-center gap-2 p-8 text-center text-muted">
             <ProblemIcon aria-hidden="true" className="size-5 shrink-0" />
             <span>{t.viewerError}</span>
           </div>

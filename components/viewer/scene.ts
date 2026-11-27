@@ -31,7 +31,7 @@ import { ThreeMFLoader } from "three/addons/loaders/3MFLoader.js";
 export interface View {
   /** Back to the camera the view opened with. */
   reset(): void;
-  /** Turn the slow turntable on or off (off for good once the visitor has moved the view). */
+  /** Turn the turntable on or off (off for good once the visitor has moved the view, or once it has made its partial turn). */
   setAutoRotate(on: boolean): void;
   /** Handle a key on the focused view: arrows turn it, + and − zoom. True if the key was the view's. */
   key(key: string): boolean;
@@ -41,24 +41,49 @@ export interface View {
 /** The colour of a part the 3MF gives none. */
 const GREY = 0xc8ccd2;
 const FOV = 30;
-/** One turn in about a minute: OrbitControls' speed 2 is a turn in 30 seconds. */
-const TURNTABLE = 1;
+/**
+ * The turntable: about 45 degrees in 4.5 seconds, then still. It starts by itself, so it must stop by itself within 5 seconds (WCAG
+ * 2.2.2). OrbitControls' speed s turns 6·s degrees a second when given the frame's time.
+ */
+const TURNTABLE_SPEED = 1.65;
+export const TURNTABLE_SECONDS = 4.5;
+/** A download that receives nothing for this long is given up, so the view shows its error instead of loading forever. */
+export const STALL_MS = 30_000;
 const KEY_TURN = Math.PI / 12;
 
-/** The 3MF's bytes, reporting how much has arrived (0..1, or null while the size is unknown). */
-export async function fetchModel(src: string, signal: AbortSignal, onProgress: (share: number | null) => void): Promise<ArrayBuffer> {
-  const res = await fetch(src, { signal });
-  if (!res.ok || !res.body) throw new Error(`3MF answered ${res.status}`);
-  const total = Number(res.headers.get("content-length")) || 0;
-  const reader = res.body.getReader();
+/**
+ * The 3MF's bytes, reporting how much has arrived (0..1, or null while the size is unknown). Throws when `signal` aborts, and when nothing
+ * arrives (no answer, or no next chunk) for `stallMs`.
+ */
+export async function fetchModel(src: string, signal: AbortSignal, onProgress: (share: number | null) => void, stallMs = STALL_MS): Promise<ArrayBuffer> {
+  const stop = new AbortController();
+  const onAbort = () => stop.abort(signal.reason);
+  signal.addEventListener("abort", onAbort);
+  if (signal.aborted) onAbort();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => stop.abort(new Error("3MF download stalled")), stallMs);
+  };
   const chunks: Uint8Array[] = [];
   let loaded = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-    loaded += value.byteLength;
-    onProgress(total ? Math.min(loaded / total, 1) : null);
+  try {
+    arm();
+    const res = await fetch(src, { signal: stop.signal });
+    if (!res.ok || !res.body) throw new Error(`3MF answered ${res.status}`);
+    const total = Number(res.headers.get("content-length")) || 0;
+    const reader = res.body.getReader();
+    for (;;) {
+      arm();
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.byteLength;
+      onProgress(total ? Math.min(loaded / total, 1) : null);
+    }
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onAbort);
   }
   const bytes = new Uint8Array(loaded);
   let at = 0;
@@ -107,7 +132,17 @@ function parse(data: ArrayBuffer): Object3D {
 }
 
 /** Opens the view in `mount` (a canvas filling it): the model on a soft ground shadow, framed, turnable by touch, mouse and keyboard. */
-export function openView(mount: HTMLElement, data: ArrayBuffer, options: { autoRotate: boolean; onFirstFrame: () => void }): View {
+export interface ViewOptions {
+  /** Whether the turntable starts (not for a visitor who turned motion off). */
+  autoRotate: boolean;
+  onFirstFrame: () => void;
+  /** The turntable started or stopped. */
+  onRotating: (on: boolean) => void;
+  /** Drawing failed (the loop is stopped). */
+  onError: (error: unknown) => void;
+}
+
+export function openView(mount: HTMLElement, data: ArrayBuffer, options: ViewOptions): View {
   const model = parse(data);
   const scene = new Scene();
 
@@ -173,18 +208,26 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, options: { autoR
   controls.minDistance = r * 1.2;
   controls.maxDistance = distance * 3;
   controls.autoRotate = options.autoRotate;
-  controls.autoRotateSpeed = TURNTABLE;
-  controls.update();
+  controls.autoRotateSpeed = TURNTABLE_SPEED;
+  controls.update(0);
   controls.saveState();
 
   let moved = false;
   let dirty = true;
   let first = true;
-  controls.addEventListener("change", () => (dirty = true));
-  controls.addEventListener("start", () => {
+  let spun = 0;
+  let last: number | undefined;
+  const rotate = (on: boolean) => {
+    if (controls.autoRotate === on) return;
+    controls.autoRotate = on;
+    options.onRotating(on);
+  };
+  const takeOver = () => {
     moved = true;
-    controls.autoRotate = false;
-  });
+    rotate(false);
+  };
+  controls.addEventListener("change", () => (dirty = true));
+  controls.addEventListener("start", takeOver);
 
   const resize = () => {
     const w = mount.clientWidth;
@@ -199,17 +242,30 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, options: { autoR
   const observer = new ResizeObserver(resize);
   observer.observe(mount);
 
-  // Drawn only when something moved: a still view costs the phone nothing but the frame callback.
-  renderer.setAnimationLoop(() => {
-    controls.update();
-    if (!dirty) return;
-    dirty = false;
-    renderer.render(scene, camera);
-    if (first) {
-      first = false;
-      options.onFirstFrame();
+  // Drawn only when something moved: a still view costs the phone nothing but the frame callback. The turntable goes by the clock, not
+  // by frames, so a slow phone turns as far in the same time.
+  renderer.setAnimationLoop((time) => {
+    try {
+      const dt = last === undefined ? 0 : (time - last) / 1000;
+      last = time;
+      if (controls.autoRotate) {
+        spun += dt;
+        if (spun >= TURNTABLE_SECONDS) rotate(false);
+      }
+      controls.update(dt);
+      if (!dirty) return;
+      dirty = false;
+      renderer.render(scene, camera);
+      if (first) {
+        first = false;
+        options.onFirstFrame();
+      }
+    } catch (e) {
+      renderer.setAnimationLoop(null);
+      options.onError(e);
     }
   });
+  if (controls.autoRotate) options.onRotating(true);
 
   return {
     reset() {
@@ -221,7 +277,7 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, options: { autoR
       dirty = true;
     },
     setAutoRotate(on) {
-      controls.autoRotate = on && !moved;
+      rotate(on && !moved && spun < TURNTABLE_SECONDS);
     },
     key(key) {
       const turn = { ArrowLeft: [-KEY_TURN, 0, 1], ArrowRight: [KEY_TURN, 0, 1], ArrowUp: [0, -KEY_TURN, 1], ArrowDown: [0, KEY_TURN, 1] } as const;
@@ -233,8 +289,7 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, options: { autoR
       s.phi = Math.min(Math.max(s.phi + dPhi, 0.05), Math.PI - 0.05);
       s.radius = Math.min(Math.max(s.radius * scale, controls.minDistance), controls.maxDistance);
       camera.position.copy(controls.target).add(new Vector3().setFromSpherical(s));
-      moved = true;
-      controls.autoRotate = false;
+      takeOver();
       controls.update();
       dirty = true;
       return true;
