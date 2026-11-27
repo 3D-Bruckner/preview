@@ -4,9 +4,7 @@
 // What no part claims (a modifier, a negative part, a support blocker) is dropped.
 import { Loader, Mesh, MeshStandardMaterial, type Material, type MeshPhongMaterial, type Object3D } from "three";
 import type { Facts, FactsPart } from "@/backend/client";
-
-/** The colour of a part the 3MF gives none. */
-export const GREY = 0xc8ccd2;
+import { GREY } from "./colours";
 
 export type PartMesh = { key: string; mesh: Mesh };
 

@@ -93,3 +93,13 @@ test("a11y: a customer's page and a model's page", async ({ page }) => {
     await everyControlByKeyboard(page);
   }
 });
+
+test("a11y: a model's page with its parts listed", async ({ page }) => {
+  const c = customer("Teile");
+  const m = model(c, "Spulenhalter");
+  await version(m, { threemf: "plates.3mf" });
+  await page.goto(`/k/${c.link}/${m.id}`);
+  await expect(page.getByRole("img", { name: "3D-Ansicht von Spulenhalter" })).toHaveAttribute("data-state", "ready", { timeout: 20_000 });
+  await noViolations(page);
+  await everyControlByKeyboard(page);
+});

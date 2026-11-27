@@ -145,6 +145,8 @@ export interface ViewOptions {
   accent?: string;
   /** What is shown changed size (at the start, and after focus and setHidden). */
   onSize?: (size: Size) => void;
+  /** The visitor turned or zoomed the view themselves (the toolbar's direction no longer holds). */
+  onUserMove?: () => void;
 }
 
 export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, options: ViewOptions): View {
@@ -235,7 +237,10 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
     rotate(false);
   };
   controls.addEventListener("change", () => (dirty = true));
-  controls.addEventListener("start", takeOver);
+  controls.addEventListener("start", () => {
+    takeOver();
+    options.onUserMove?.();
+  });
 
   const resize = () => {
     const w = mount.clientWidth;
@@ -387,6 +392,7 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
       s.radius = Math.min(Math.max(s.radius * scale, controls.minDistance), controls.maxDistance);
       camera.position.copy(controls.target).add(new Vector3().setFromSpherical(s));
       takeOver();
+      options.onUserMove?.();
       controls.update();
       dirty = true;
       return true;

@@ -15,15 +15,20 @@ describe("ModelViewer", () => {
     expect(html).toMatch(/role="status"[^>]*>.*3D-Ansicht wird geladen/);
   });
 
-  it("has a reset button named in the page's language, disabled until the model has loaded", () => {
+  it("has the view's tools named in the page's language, the camera ones disabled until the model has loaded", () => {
     const de = renderToString(<ModelViewer src={SRC} label="x" facts={emptyFacts()} />);
-    expect(de).toMatch(/<button[^>]*disabled=""[^>]*>.*Ansicht zurücksetzen.*<\/button>/);
+    expect(de).toMatch(/<button[^>]*aria-label="Einpassen"[^>]*disabled=""|<button[^>]*disabled=""[^>]*aria-label="Einpassen"/);
+    expect(de).toMatch(/role="group" aria-label="Ansicht"/);
+    expect(de).toMatch(/<button[^>]*disabled=""[^>]*>Oben<\/button>/);
+    expect(de).toMatch(/aria-label="Raster"/);
+    // Full screen is offered only once the page runs and knows the browser allows it.
+    expect(de).not.toContain("Vollbild");
     const en = renderToString(
       <CopyProvider lang="en">
         <ModelViewer src={SRC} label="x" facts={emptyFacts()} />
       </CopyProvider>,
     );
-    expect(en).toMatch(/<button[^>]*>.*Reset view.*<\/button>/);
+    expect(en).toMatch(/aria-label="Fit"/);
     expect(en).toContain("Loading the 3D view");
   });
 });

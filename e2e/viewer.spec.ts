@@ -122,7 +122,7 @@ test("the keychain keeps the 3MF's colours: its red part and its blue part are b
   expect(seen.blue).toBeGreaterThan(50);
 });
 
-test("the reset button brings a turned view back to where it started", async ({ page }) => {
+test("Einpassen brings a turned view back to where it started", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const view = await openView(page, await modelPage("keychain.3mf", "Schlüsselanhänger"), "Schlüsselanhänger");
   const start = await look(page, view);
@@ -134,7 +134,7 @@ test("the reset button brings a turned view back to where it started", async ({ 
   await page.mouse.up();
   await expect.poll(async () => apart(await look(page, view), start), MOVING).toBeGreaterThan(3);
 
-  await page.getByRole("button", { name: "Ansicht zurücksetzen" }).click();
+  await page.getByRole("button", { name: "Einpassen" }).click();
   await expect.poll(async () => apart(await look(page, view), start), MOVING).toBeLessThan(0.5);
 });
 
