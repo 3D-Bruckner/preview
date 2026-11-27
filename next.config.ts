@@ -11,8 +11,9 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: { "/**": ["./node_modules/next-app-kit/dist/**"] },
   // The root layout is in app/[lang] (conventions: code/language), so an address no route matches gets app/global-not-found.tsx.
   experimental: { globalNotFound: true },
-  // No page is ever framed: a page of another site must not overlay a "Save", "Delete" or "Allow" click.
-  headers: async () => [{ source: "/(.*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'none'" }] }],
+  // No page is ever framed: a page of another site must not overlay a "Save", "Delete" or "Allow" click. A customer's files and the logo
+  // carry a policy of their own (sandboxed, loading nothing), which this one would replace.
+  headers: async () => [{ source: "/((?!k/[^/]+/files/|brand/logo$).*)", headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'none'" }] }],
 };
 
 export default nextConfig;

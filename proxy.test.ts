@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+import { createCustomer, type Customer } from "@/backend";
+import { runtime } from "@/app/_lib/runtime";
 import { config, proxy } from "./proxy";
 
 const get = (path: string, headers: Record<string, string> = {}) => proxy(new NextRequest(new URL(path, "http://localhost"), { headers }));
@@ -38,9 +40,25 @@ describe("proxy", () => {
       "/manifest.webmanifest",
       "/icons/icon-192.png",
       "/favicon.ico",
+      "/brand/logo",
+      "/k/abc/files/v1/model.3mf",
+      "/k/abc/files/v1/0b6f3c1e-1111-4222-8333-944445555666",
     ])
       expect(runs(path), path).toBe(false);
-    for (const path of ["/", "/customers", "/customers/abc", "/models/abc", "/signin?next=%2F", "/consent", "/settings", "/mcpx", "/healthy"])
+    for (const path of [
+      "/k/abc",
+      "/k/abc/0b6f3c1e-1111-4222-8333-944445555666",
+      "/brand",
+      "/",
+      "/customers",
+      "/customers/abc",
+      "/models/abc",
+      "/signin?next=%2F",
+      "/consent",
+      "/settings",
+      "/mcpx",
+      "/healthy",
+    ])
       expect(runs(path), path).toBe(true);
   });
 });
@@ -57,5 +75,41 @@ describe("proxy and the Home Screen's files", () => {
       "/robots.txt",
     ])
       expect(unstable_doesMiddlewareMatch({ config, url: path }), path).toBe(false);
+  });
+});
+
+describe("proxy on a customer's pages", () => {
+  // The process's runtime, on the test's DATA_DIR (the proxy looks the customer's language up through it).
+  let en: Customer;
+  let de: Customer;
+  beforeAll(() => {
+    process.env.PUBLIC_URL = "https://preview.example.com";
+    process.env.PREVIEW_SECRET = "s".repeat(32);
+    process.env.PREVIEW_SMTP_URL = "smtp://127.0.0.1:2525";
+    const ok = <T>(o: { ok: true; value: T } | { ok: false }) => (o.ok ? o.value : expect.fail("not created"));
+    en = ok(createCustomer(runtime(), { name: "Anna", language: "en" }));
+    de = ok(createCustomer(runtime(), { name: "Bert" }));
+  });
+  afterAll(() => runtime().store.close());
+
+  it("opens them in the customer's language, not the browser's, when the visitor picked none", () => {
+    expect(rewrite(get(`/k/${en.link}`, { "accept-language": "de" }))).toBe(`http://localhost/en/k/${en.link}`);
+    expect(rewrite(get(`/k/${de.link}/m1`, { "accept-language": "en" }))).toBe(`http://localhost/de/k/${de.link}/m1`);
+  });
+
+  it("keeps the language picked in the switch", () => {
+    expect(rewrite(get(`/k/${en.link}`, { cookie: "preview_lang=de" }))).toBe(`http://localhost/de/k/${en.link}`);
+  });
+
+  it("takes the browser's language for a token that opens nothing", () => {
+    expect(rewrite(get("/k/unknown", { "accept-language": "en" }))).toBe("http://localhost/en/k/unknown");
+  });
+
+  it("sets no cookie, keeps them out of search engines and their address out of other sites' Referer", () => {
+    const r = get(`/k/${en.link}`);
+    expect(r.headers.get("set-cookie")).toBeNull();
+    expect(r.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+    expect(r.headers.get("referrer-policy")).toBe("same-origin");
+    expect(get("/").headers.get("x-robots-tag")).toBeNull();
   });
 });

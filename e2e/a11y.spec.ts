@@ -2,6 +2,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { PHONE } from "./app";
+import { customer, model, version } from "./seed";
 import { signIn } from "./signin";
 
 test.use(PHONE);
@@ -61,3 +62,19 @@ for (const [path, heading] of [["/settings", "Einstellungen"]]) {
     await everyControlByKeyboard(page);
   });
 }
+
+test("a11y: a customer's page and a model's page", async ({ page }) => {
+  const c = customer("Barrierefrei");
+  const m = model(c, "Rampe", "Für die Stufe");
+  await version(m, { note: "Erster Entwurf" });
+  await version(m, { note: "Breiter", drawings: [`${process.cwd()}/backend/fixtures/preview.png`] });
+  for (const [path, heading] of [
+    [`/k/${c.link}`, "Modelle für Barrierefrei"],
+    [`/k/${c.link}/${m.id}`, "Rampe"],
+  ] as const) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    await noViolations(page);
+    await everyControlByKeyboard(page);
+  }
+});

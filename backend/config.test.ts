@@ -139,6 +139,8 @@ describe("loadConfig", () => {
     const at = (logo: string) => loadConfig(env({ DATA_DIR: "/srv/preview", PREVIEW_LOGO: logo })).brand.logo;
     expect(at("logo.png")).toBe("/srv/preview/logo.png");
     expect(at("/srv/preview/brand/logo.svg")).toBe("/srv/preview/brand/logo.svg");
+    // A name that only starts with two dots is still inside.
+    expect(at("..logo.svg")).toBe("/srv/preview/..logo.svg");
     for (const v of ["../logo.svg", "brand/../../etc/logo.png", "/etc/logo.svg", "/srv/preview-other/logo.svg", "logo.jpg", "logo.svg.exe"])
       expect(() => at(v), v).toThrow("PREVIEW_LOGO must be an .svg or .png file inside DATA_DIR");
   });

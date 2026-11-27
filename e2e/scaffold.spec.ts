@@ -44,11 +44,12 @@ test.describe("a browser that asks only for languages the UI doesn't speak", () 
   });
 });
 
-test("names no operator: the header and the title show the neutral brand, and nothing says who runs the instance", async ({ page }) => {
+test("names no operator: the header and the title show the instance's brand (its settings), the footer its imprint", async ({ page }) => {
   await signIn(page);
-  await expect(page.getByRole("banner")).toContainText("Preview");
-  await expect(page).toHaveTitle(/Preview/);
+  await expect(page.getByRole("banner")).toContainText("Test Studio");
+  await expect(page).toHaveTitle(/Test Studio/);
   expect(await page.content()).not.toMatch(/bruckner/i);
-  // No imprint or privacy link is set on the test server, so there is no footer.
-  await expect(page.getByRole("contentinfo")).toHaveCount(0);
+  await expect(page.getByRole("contentinfo").getByRole("link", { name: "Imprint" })).toHaveAttribute("href", "https://studio.example.com/imprint");
+  // No privacy link is set on the test server, so there is none.
+  await expect(page.getByRole("contentinfo").getByRole("link")).toHaveCount(1);
 });

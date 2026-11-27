@@ -5,7 +5,7 @@
 //
 // Everything that names whoever runs an instance is a setting (the brand's name, link, accent colour and logo, the imprint and privacy
 // links): the product itself names no operator, and its defaults are neutral.
-import { isAbsolute, relative, resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import * as z from "zod";
 
 export type Brand = {
@@ -125,7 +125,7 @@ function logoPath(dataDir: string, logo: string): string {
   const root = resolve(dataDir);
   const path = resolve(root, logo);
   const rel = relative(root, path);
-  if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) throw new Error(LOGO);
+  if (rel === "" || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error(LOGO);
   return path;
 }
 

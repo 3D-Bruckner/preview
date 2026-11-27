@@ -104,6 +104,18 @@ export const en = {
       revoked: "Token revoked",
     },
   },
+  customer: {
+    title: (name: string) => `Models for ${name}`,
+    empty: "There are no models to show yet.",
+    version: (n: number) => `Version ${n}`,
+    allModels: "All models",
+    viewer: (title: string) => `3D view of ${title}`,
+    versions: "Versions",
+    shown: "shown",
+    drawings: "Drawings",
+    drawing: (n: number) => `Drawing ${n}`,
+    pdf: (n: number) => `Drawing ${n} (PDF)`,
+  },
   footer: {
     label: "Legal",
     imprint: "Imprint",

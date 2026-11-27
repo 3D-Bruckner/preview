@@ -102,6 +102,18 @@ export const de: Copy = {
       revoked: "Token widerrufen",
     },
   },
+  customer: {
+    title: (name: string) => `Modelle für ${name}`,
+    empty: "Noch gibt es keine Modelle zu sehen.",
+    version: (n: number) => `Version ${n}`,
+    allModels: "Alle Modelle",
+    viewer: (title: string) => `3D-Ansicht von ${title}`,
+    versions: "Versionen",
+    shown: "angezeigt",
+    drawings: "Zeichnungen",
+    drawing: (n: number) => `Zeichnung ${n}`,
+    pdf: (n: number) => `Zeichnung ${n} (PDF)`,
+  },
   footer: {
     label: "Rechtliches",
     imprint: "Impressum",

@@ -5,8 +5,18 @@ import { log as processLog } from "./log";
 import { openRuntime, type Runtime } from "./runtime";
 
 export { API_TOKEN_PREFIX, APP_NAME, CONSENT_PAGE, ENV_PREFIX, SIGN_IN_PAGE, type MailWording } from "./accounts";
+export { logoFile } from "./brand";
 export type { Brand, Config } from "./config";
 export { createCustomer, customerByToken, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer, type Language } from "./customers";
+export {
+  customerFile,
+  customerLanguage,
+  customerModel,
+  customerView,
+  type CustomerModelView,
+  type CustomerVersionView,
+  type CustomerView,
+} from "./customerview";
 export { addVersion, UPLOAD_TYPES, type UploadedFile } from "./files";
 export { healthResponse } from "./health";
 export { log } from "./log";
