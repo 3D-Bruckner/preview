@@ -20,7 +20,7 @@ async function everyControlByKeyboard(page: Page) {
   const total = await page.evaluate(() => {
     const controls = [...document.querySelectorAll<HTMLElement>("a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex='0']")];
     const visible = controls.filter(
-      (el) => el.getClientRects().length > 0 && getComputedStyle(el).visibility !== "hidden" && !(el.role === "tab" && el.tabIndex === -1),
+      (el) => el.checkVisibility({ visibilityProperty: true }) && el.getClientRects().length > 0 && !(el.role === "tab" && el.tabIndex === -1),
     );
     visible.forEach((el, i) => el.setAttribute("data-control", String(i)));
     return visible.length;
@@ -84,7 +84,7 @@ test("a11y: a customer's page and a model's page", async ({ page }) => {
   await version(m, { note: "Erster Entwurf" });
   await version(m, { note: "Breiter", drawings: [`${process.cwd()}/backend/fixtures/preview.png`] });
   for (const [path, heading] of [
-    [`/k/${c.link}`, "Modelle für Barrierefrei"],
+    [`/k/${c.link}`, "Deine Modelle"],
     [`/k/${c.link}/${m.id}`, "Rampe"],
   ] as const) {
     await page.goto(path);

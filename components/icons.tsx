@@ -2,12 +2,19 @@
 // aria-hidden; an icon-only control carries an aria-label.
 export {
   CircleAlert as ProblemIcon,
+  Box as ModelsIcon,
   Check as SavedIcon,
+  ChevronDown as OpenIcon,
+  ChevronRight as CrumbIcon,
+  Clock as ChangedIcon,
   KeyRound as TokenIcon,
   LogOut as SignOutIcon,
+  Moon as DarkIcon,
   Plus as AddIcon,
   RotateCcw as ResetViewIcon,
   Settings as SettingsIcon,
+  Sun as LightIcon,
+  SunMoon as AutoThemeIcon,
   Trash2 as DeleteIcon,
   Users as CustomersIcon,
 } from "lucide-react";

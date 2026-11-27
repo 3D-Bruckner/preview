@@ -49,7 +49,7 @@ export default async function CustomerAdminPage({ params }: PageProps<"/[lang]/c
         {models.length === 0 ? (
           <p className="mt-2 text-muted">{t.noModels}</p>
         ) : (
-          <ul className="mt-2 divide-y divide-border rounded-xl border border-border">
+          <ul className="mt-2 divide-y divide-border rounded-md border border-border">
             {models.map(({ model, newest }) => (
               <li key={model.id}>
                 <Link href={`/models/${model.id}`} className="flex min-h-11 flex-col p-3 hover:bg-surface">

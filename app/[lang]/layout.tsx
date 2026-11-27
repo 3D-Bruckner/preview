@@ -6,6 +6,7 @@ import { runtime } from "@/app/_lib/runtime";
 import { BrandFooter } from "@/components/BrandFooter";
 import { CopyProvider } from "@/components/CopyProvider";
 import { isLocale } from "@/components/copy";
+import { currentTheme } from "@/app/_lib/theme";
 import "@fontsource-variable/archivo";
 import "@fontsource-variable/hanken-grotesk";
 import "../globals.css";
@@ -26,10 +27,13 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   const { lang } = await params;
   if (!isLocale(lang)) notFound();
   const brand = runtime().config.brand;
+  // The theme switch's choice (components/ThemeSwitch.tsx): light and dark set data-theme, auto sets none and globals.css follows the system,
+  // so the first paint is already right.
+  const theme = await currentTheme();
   // The header and <main> are the route groups' own: (app) for the signed-in pages, (public) for sign-in and consent. The accent is the
   // setting's (globals.css derives the rest from it); the footer is every page's.
   return (
-    <html lang={lang} style={{ "--brand-accent": brand.accentColor } as CSSProperties}>
+    <html lang={lang} data-theme={theme === "auto" ? undefined : theme} style={{ "--brand-accent": brand.accentColor } as CSSProperties}>
       <body className="flex min-h-screen flex-col bg-paper text-ink antialiased">
         <CopyProvider lang={lang}>{children}</CopyProvider>
         <BrandFooter brand={brand} lang={lang} />

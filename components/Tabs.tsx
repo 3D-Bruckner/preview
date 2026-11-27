@@ -26,7 +26,7 @@ export function Tabs({ label, tabs, initial }: { label: string; tabs: { id: stri
 
   return (
     <div>
-      <div role="tablist" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-surface p-1">
+      <div role="tablist" aria-label={label} className="grid auto-cols-fr grid-flow-col gap-1 rounded-md bg-surface p-1">
         {tabs.map((t, i) => {
           const selected = t.id === open;
           return (
@@ -43,7 +43,7 @@ export function Tabs({ label, tabs, initial }: { label: string; tabs: { id: stri
               tabIndex={selected ? 0 : -1}
               onClick={() => choose(t.id)}
               onKeyDown={(e) => onKey(e, i)}
-              className={`tabular min-h-10 rounded-lg px-3 text-[0.9375rem] ${selected ? "bg-paper font-bold text-ink shadow-sm ring-1 ring-border" : "font-medium text-muted hover:text-ink"}`}
+              className={`tabular min-h-10 rounded-md px-3 text-[0.9375rem] ${selected ? "bg-paper font-bold text-ink shadow-sm ring-1 ring-border" : "font-medium text-muted hover:text-ink"}`}
             >
               {t.label}
             </button>

@@ -84,6 +84,36 @@ test("the ramp is drawn in the middle of the view, on the background", async ({ 
   expect(distance(seen.centre, seen.background)).toBeGreaterThan(20);
 });
 
+test("around the model and its shadow the view is only the background: no edge of the ground or of the shadow's reach", async ({ page }) => {
+  const view = await openView(page, await modelPage("ramp.3mf", "Rampe"), "Rampe");
+  // Where the opening turn stops: the edge showed from there, not from the angle a visitor who turned motion off gets.
+  await expect(view).toHaveAttribute("data-rotating", "false", { timeout: 6_000 });
+  // A plain white stage instead of the grid, so anything the view draws there shows.
+  await view.evaluate((el) => Object.assign(el.parentElement!.style, { background: "#fff" }));
+  const png = (await view.screenshot()).toString("base64");
+  const marked = await page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const c = document.createElement("canvas");
+    [c.width, c.height] = [img.width, img.height];
+    const g = c.getContext("2d", { willReadFrequently: true })!;
+    g.drawImage(img, 0, 0);
+    // The outer 6 % left and right, below the reset button and above the stage's rounded corners: the model is centred and its shadow
+    // stays well inside.
+    const w = Math.floor(c.width * 0.06);
+    const top = Math.ceil(c.height * 0.16);
+    const bottom = Math.floor(c.height * 0.95);
+    let n = 0;
+    for (const x0 of [1, c.width - w - 1]) {
+      const d = g.getImageData(x0, top, w, bottom - top).data;
+      for (let i = 0; i < d.length; i += 4) if (Math.min(d[i]!, d[i + 1]!, d[i + 2]!) < 252) n++;
+    }
+    return n;
+  }, png);
+  expect(marked).toBe(0);
+});
+
 test("the keychain keeps the 3MF's colours: its red part and its blue part are both shown", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   const view = await openView(page, await modelPage("keychain.3mf", "Schlüsselanhänger"), "Schlüsselanhänger");

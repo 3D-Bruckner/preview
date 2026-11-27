@@ -1,20 +1,16 @@
+import { logoFile } from "@/backend";
 import { runtime } from "@/app/_lib/runtime";
-import { BrandName } from "@/components/BrandName";
+import { currentTheme } from "@/app/_lib/theme";
 import { isLocale } from "@/components/copy";
-import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { SiteHeader } from "@/components/SiteHeader";
 
-// The pages someone not signed in sees (sign-in, consent): the brand's name and the language switch.
+// The pages someone not signed in sees (sign-in, consent): the shared header, narrow.
 export default async function PublicLayout({ children, params }: LayoutProps<"/[lang]">) {
   const { lang } = await params;
-  const brand = runtime().config.brand;
+  const rt = runtime();
   return (
     <>
-      <header className="border-b border-border">
-        <div className="flex items-center justify-between px-safe py-3">
-          <BrandName brand={brand} className="font-semibold" />
-          {isLocale(lang) && <LanguageSwitch lang={lang} />}
-        </div>
-      </header>
+      {isLocale(lang) && <SiteHeader brand={rt.config.brand} logo={!!logoFile(rt.config)} lang={lang} theme={await currentTheme()} width="narrow" />}
       <main className="flex-1 px-safe py-6">{children}</main>
     </>
   );

@@ -2,8 +2,7 @@
 
 /* A quiet, neutral palette: the accent marks the one thing to do on a screen and the focus ring. The accent is the instance's own
    (PREVIEW_ACCENT_COLOR, set as --brand-accent on <html> by app/[lang]/layout.tsx; it must pass 4.5:1 on white); its hover and its dark
-   mode form are mixed from it, lighter in the dark so it keeps its contrast there. Light values on :root, dark ones when the system asks
-   for dark. --line is a control's edge and reaches 3:1 against --bg. */
+   mode form are mixed from it, lighter in the dark so it keeps its contrast there. Light values on :root, dark ones below. --line is a control's edge and reaches 3:1 against --bg. */
 :root {
   color-scheme: light;
   --brand-accent: #1d4ed8;
@@ -19,8 +18,24 @@
   --danger: #b42318;
   --success: #1f7a4d;
 }
+/* Dark: when the theme switch says so (data-theme="dark" on <html>, app/[lang]/layout.tsx), or when it says auto (no attribute) and
+   the system asks for dark. Light is the default above, and data-theme="light" keeps it on a dark system. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --surface: #181b21;
+  --fg: #f0eee9;
+  --muted: #a6a9b1;
+  --border: #2b2f38;
+  --line: #727987;
+  --accent: color-mix(in oklab, var(--brand-accent) 45%, white);
+  --accent-hover: color-mix(in oklab, var(--brand-accent) 30%, white);
+  --on-accent: #0f1115;
+  --danger: #ff8a7a;
+  --success: #5fd39a;
+}
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --bg: #0f1115;
     --surface: #181b21;

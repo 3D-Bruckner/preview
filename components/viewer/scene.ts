@@ -161,7 +161,8 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, options: ViewOpt
   sun.position.copy(sphere.center).add(new Vector3(-r * 1.4, r * 4, r * 1.2));
   sun.target.position.copy(sphere.center);
   sun.castShadow = true;
-  // Wider than the ground the camera sees: where the shadow camera ends, VSM draws a faint edge.
+  // Wider than the ground (±3r, below): where the shadow camera ends, VSM darkens the ground a little, which shows as a faint line across
+  // the view when that end lies on the ground. Seen slanted from the sun, ±4r covers more than ±3r on the ground.
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.radius = 12;
   sun.shadow.blurSamples = 16;
@@ -171,7 +172,8 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, options: ViewOpt
   fill.position.copy(sphere.center).add(new Vector3(r * 2, r, -r * 1.5));
   scene.add(fill);
 
-  const ground = new Mesh(new PlaneGeometry(r * 10, r * 10), new ShadowMaterial({ opacity: 0.18 }));
+  // Only where a shadow can fall: the ShadowMaterial draws nothing elsewhere, and its edge must stay inside the shadow camera (above).
+  const ground = new Mesh(new PlaneGeometry(r * 6, r * 6), new ShadowMaterial({ opacity: 0.18 }));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);

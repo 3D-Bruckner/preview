@@ -72,9 +72,13 @@ test("a customer's page shows their models as tiles with previews, loads no 3MF,
     const r = await page.goto(`/k/${a.link}`);
     expect(r?.status()).toBe(200);
     expect(r?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Modelle für ${a.name}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Deine Modelle");
+    await expect(page.getByText(`Für ${a.name}`)).toBeVisible();
+    await expect(page.getByRole("main").getByRole("list").first()).toContainText("1 Modell");
     const tile = page.getByRole("link", { name: /Rampe/ });
     await expect(tile).toContainText("Version 2");
+    await expect(tile).toContainText("Neue Version");
+    await expect(tile).toContainText("Zuletzt: 2 cm breiter");
     await expect(tile).toHaveAttribute("href", `/k/${a.link}/${ramp.id}`);
     await expect.poll(() => tile.locator("img").evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
   });
@@ -192,13 +196,28 @@ test("a customer whose language is English gets English, until the visitor switc
   await version(model(anna, "Ramp"));
   await page.goto(`/k/${anna.link}`);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Models for Anne");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your models");
+  await expect(page.getByText("For Anne")).toBeVisible();
   expect(await context.cookies()).toEqual([]);
 
   await page.getByRole("button", { name: "Deutsch" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Modelle für Anne");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Deine Modelle");
   expect(new URL(page.url()).pathname).toBe(`/k/${anna.link}`);
   expect((await context.cookies()).map((c) => c.name)).toEqual(["preview_lang"]);
+});
+
+test("the theme switch sets dark for the visitor and keeps it; only the switch sets its cookie", async ({ page, context }) => {
+  const c = customer("Dora");
+  await version(model(c, "Rampe"));
+  await page.goto(`/k/${c.link}`);
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.*/);
+  await page.getByRole("button", { name: "Dunkel" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Dunkel" })).toHaveAttribute("aria-pressed", "true");
+  expect(new URL(page.url()).pathname).toBe(`/k/${c.link}`);
+  expect((await context.cookies()).map((x) => x.name)).toEqual(["preview_theme"]);
+  await page.getByRole("button", { name: "Auto" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.*/);
 });
 
 test("the customer pages show the instance's brand, its logo and its imprint, and name nobody else", async ({ page }) => {
@@ -215,4 +234,40 @@ test("the customer pages show the instance's brand, its logo and its imprint, an
   const r = await page.request.get("/brand/logo");
   expect(r.headers()).toMatchObject({ "content-type": "image/svg+xml", "x-content-type-options": "nosniff" });
   expect(r.headers()["content-security-policy"]).toBe("default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; sandbox");
+});
+
+test.describe("on a desktop", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("a model's page has a breadcrumb, a version picker, and the viewer beside a side panel", async ({ page }) => {
+    const { a, ramp } = await seed();
+    await page.goto(`/k/${a.link}/${ramp.id}`);
+    const crumbs = page.getByRole("navigation", { name: "Pfad" });
+    await expect(crumbs.getByRole("link", { name: "Deine Modelle" })).toHaveAttribute("href", `/k/${a.link}`);
+
+    const picker = page.getByText("Version 2 ·", { exact: false }).first();
+    await picker.click();
+    const choices = page.getByRole("list", { name: "Versionen wählen" }).getByRole("link");
+    await expect(choices).toHaveCount(2);
+    await expect(choices.nth(0)).toHaveAttribute("aria-current", "page");
+    await expect(choices.nth(1)).toHaveAttribute("href", `/k/${a.link}/${ramp.id}?v=1`);
+
+    const viewer = await page.getByRole("img", { name: "3D-Ansicht von Rampe" }).boundingBox();
+    const aside = await page.getByRole("complementary").boundingBox();
+    expect(aside!.x).toBeGreaterThan(viewer!.x + viewer!.width - 1);
+    await expect(page.getByRole("complementary").getByRole("region", { name: "Versionen" })).toContainText("angezeigt");
+  });
+
+  test("the header, the page and the footer share one left edge", async ({ page }) => {
+    const { a } = await seed();
+    await page.goto(`/k/${a.link}`);
+    const left = async (sel: string) =>
+      await page
+        .locator(sel)
+        .first()
+        .evaluate((e) => e.getBoundingClientRect().left + parseFloat(getComputedStyle(e).paddingLeft));
+    const main = await left("body > main");
+    expect(await left("body > header > div")).toBe(main);
+    expect(await left("body > footer > nav")).toBe(main);
+  });
 });

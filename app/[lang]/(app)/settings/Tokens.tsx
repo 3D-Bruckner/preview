@@ -62,7 +62,7 @@ export function Tokens({ tokens }: { tokens: Token[] }) {
         </button>
       </form>
       {made?.ok && made.token ? (
-        <div className="mt-4 rounded-lg border-2 border-accent p-3">
+        <div className="mt-4 rounded-md border-2 border-accent p-3">
           <label className="block">
             <span className={ui.label}>{tt.created}</span>
             <input readOnly value={made.token} onFocus={(e) => e.currentTarget.select()} className={`${ui.input} font-mono text-sm`} />
@@ -81,7 +81,7 @@ export function Tokens({ tokens }: { tokens: Token[] }) {
       {tokens.length === 0 ? (
         <p className="mt-2 text-muted">{tt.none}</p>
       ) : (
-        <ul className="mt-2 divide-y divide-border rounded-xl border border-border">
+        <ul className="mt-2 divide-y divide-border rounded-md border border-border">
           {tokens.map((k) => (
             <li key={k.id} className="flex items-center gap-3 p-3">
               <span className="min-w-0 flex-1">

@@ -10,6 +10,12 @@ export const en = {
     label: "Language",
     names: { en: "English", de: "Deutsch" },
   },
+  theme: {
+    label: "Appearance",
+    auto: "Auto",
+    light: "Light",
+    dark: "Dark",
+  },
   home: {
     title: "Customers",
     empty: "No customers yet.",
@@ -173,6 +179,15 @@ export const en = {
   },
   customer: {
     title: (name: string) => `Models for ${name}`,
+    breadcrumb: "Breadcrumb",
+    chooseVersion: "Choose a version",
+    yourModels: "Your models",
+    forName: (name: string) => `For ${name}`,
+    lead: "Everything designed for you is here. Each new version appears as soon as it is ready.",
+    modelCount: (n: number) => (n === 1 ? "1 model" : `${n} models`),
+    lastChanged: "last changed",
+    newVersion: "New version",
+    latestNote: "Latest:",
     empty: "There are no models to show yet.",
     version: (n: number) => `Version ${n}`,
     allModels: "All models",
