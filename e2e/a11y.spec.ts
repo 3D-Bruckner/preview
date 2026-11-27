@@ -63,6 +63,21 @@ for (const [path, heading] of [["/settings", "Einstellungen"]]) {
   });
 }
 
+test("a11y: a customer's admin page and a model's admin page", async ({ page }) => {
+  const c = customer("Verwaltet");
+  const m = model(c, "Rampe", "Für die Stufe");
+  await version(m, { note: "Erster Entwurf" });
+  for (const [path, heading] of [
+    [`/customers/${c.id}`, "Verwaltet"],
+    [`/models/${m.id}`, "Rampe"],
+  ] as const) {
+    await signIn(page, path);
+    await expect(page.getByRole("heading", { level: 1, name: heading })).toBeVisible();
+    await noViolations(page);
+    await everyControlByKeyboard(page);
+  }
+});
+
 test("a11y: a customer's page and a model's page", async ({ page }) => {
   const c = customer("Barrierefrei");
   const m = model(c, "Rampe", "Für die Stufe");

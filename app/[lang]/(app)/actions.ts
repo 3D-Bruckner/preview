@@ -4,7 +4,9 @@
 // a change (refresh), so what it shows is what is stored.
 import { refresh } from "next/cache";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { createApiToken, revokeApiToken } from "next-app-kit/tokens";
+import { createCustomer, createModel, renewLink, revokeLink, updateCustomer, updateModel, type Language, type Outcome } from "@/backend";
 import { actionPerson } from "@/app/_lib/signin";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor, LANG_HEADER, type Copy } from "@/components/copy";
@@ -40,4 +42,66 @@ export async function revokeToken(id: string): Promise<Result> {
   if (!out.ok) return { ok: false, error: t.common.failed };
   refresh();
   return { ok: true, message: t.settings.tokens.revoked };
+}
+
+// ---- customers, their links, models (the domain does the work; these only check who asks and put a refusal into words)
+
+const field = (fd: FormData, name: string) => String(fd.get(name) ?? "");
+const languageField = (fd: FormData): Language => (fd.get("language") === "en" ? "en" : "de");
+
+/** A refusal in words: the domain's English message is never shown. */
+function refused<T>(t: Copy, out: Extract<Outcome<T>, { ok: false }>, invalidText: string): Result {
+  return { ok: false, error: out.reason === "not_found" ? t.admin.refused.notFound : out.reason === "invalid" ? invalidText : t.admin.refused.other };
+}
+
+export async function addCustomer(_prev: Result | null, fd: FormData): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = createCustomer(runtime(), { name: field(fd, "name"), note: field(fd, "note"), language: languageField(fd) });
+  if (!out.ok) return refused(t, out, t.admin.refused.name);
+  redirect(`/customers/${out.value.id}`);
+}
+
+export async function saveCustomer(_prev: Result | null, fd: FormData): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = updateCustomer(runtime(), field(fd, "id"), { name: field(fd, "name"), note: field(fd, "note"), language: languageField(fd) });
+  if (!out.ok) return refused(t, out, t.admin.refused.name);
+  refresh();
+  return { ok: true, message: t.admin.customer.saved };
+}
+
+export async function renewCustomerLink(id: string): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = renewLink(runtime(), id);
+  if (!out.ok) return refused(t, out, t.admin.refused.other);
+  refresh();
+  return { ok: true, message: t.admin.customer.renewed };
+}
+
+export async function revokeCustomerLink(id: string): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = revokeLink(runtime(), id);
+  if (!out.ok) return refused(t, out, t.admin.refused.other);
+  refresh();
+  return { ok: true, message: t.admin.customer.revoked };
+}
+
+export async function addModel(_prev: Result | null, fd: FormData): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = createModel(runtime(), { customerId: field(fd, "customerId"), title: field(fd, "title"), description: field(fd, "description") });
+  if (!out.ok) return refused(t, out, t.admin.refused.title);
+  redirect(`/models/${out.value.id}`);
+}
+
+export async function saveModel(_prev: Result | null, fd: FormData): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = updateModel(runtime(), field(fd, "id"), { title: field(fd, "title"), description: field(fd, "description") });
+  if (!out.ok) return refused(t, out, t.admin.refused.title);
+  refresh();
+  return { ok: true, message: t.admin.customer.saved };
 }
