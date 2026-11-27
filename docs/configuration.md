@@ -67,6 +67,8 @@ Everything preview keeps is in `DATA_DIR`:
 DATA_DIR/
   preview.sqlite   the customers, their models and the models' versions
   auth.sqlite      next-app-kit's: people, sessions, API tokens, MCP clients and grants
+  files/<model>/<version>/   a version's model.3mf, preview.png and drawings
+  (your logo, if PREVIEW_LOGO points into DATA_DIR)
 ```
 
-The uploaded files' place is added with the uploads. **A backup needs all of it**: both SQLite files, copied with `sqlite3 <file> ".backup <copy>"` (not `cp`) while the app runs, and every file beside them.
+**A backup needs all of it**: both SQLite files, copied with `sqlite3 <file> ".backup <copy>"` (not `cp`) while the app runs, and every file beside them.

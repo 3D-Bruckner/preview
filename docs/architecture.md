@@ -4,11 +4,14 @@ How preview is put together: where each part lives and the rules between them. W
 
 ```mermaid
 flowchart LR
-  O["Whoever runs it<br/>(web app)"] --> A
-  C["Claude<br/>(MCP, OAuth)"] --> A
-  S["A workshop's script<br/>(REST, API token)"] --> A
-  A["preview<br/>app/ → backend/"] --> D[("DATA_DIR<br/>preview.sqlite, auth.sqlite")]
+  U["An uploader<br/>(e.g. a CAD workstation<br/>running a render script)"] -- "POST /api/models/{id}/versions<br/>API token" --> A
+  K["A customer"] -- "/k/&lt;token&gt;<br/>no sign-in" --> A
+  O["The operator"] -- "web app (session)" --> A
+  C["Claude"] -- "/mcp (OAuth)" --> A
+  A["preview<br/>app/ → backend/"] --> D[("DATA_DIR<br/>preview.sqlite, auth.sqlite,<br/>files/")]
 ```
+
+Everything reaches the same domain code in `backend/`; the three ways in differ only in who is allowed: an API token or the operator's session uploads, a link token opens one customer's pages, and the operator or Claude manages the rest.
 
 ## Layers
 

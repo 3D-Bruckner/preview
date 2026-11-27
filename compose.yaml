@@ -10,6 +10,7 @@ services:
     image: ghcr.io/3d-bruckner/preview:main
     container_name: preview
     restart: unless-stopped
+    # No healthcheck here: the image has one (GET /health), which `docker ps` shows as (healthy).
     env_file: .env
     volumes:
       - ./data:/data
