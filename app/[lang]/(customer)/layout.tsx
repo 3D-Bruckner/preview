@@ -1,3 +1,4 @@
+import { logoFile } from "@/backend";
 import { runtime } from "@/app/_lib/runtime";
 import { BrandName } from "@/components/BrandName";
 import { isLocale } from "@/components/copy";
@@ -15,7 +16,7 @@ export default async function CustomerLayout({ children, params }: LayoutProps<"
           <div className="flex min-w-0 items-center gap-2">
             {/* The name beside it says what it is, so the logo is decoration. */}
             {/* eslint-disable-next-line @next/next/no-img-element -- the logo's own route; an SVG must stay an <img> */}
-            {brand.logo && <img src="/brand/logo" alt="" className="h-8 w-auto" />}
+            {logoFile(runtime().config) && <img src="/brand/logo" alt="" className="h-8 w-auto" />}
             <BrandName brand={brand} className="font-display font-bold tracking-tight" />
           </div>
           {isLocale(lang) && <LanguageSwitch lang={lang} />}

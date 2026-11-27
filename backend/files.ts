@@ -3,7 +3,7 @@
 // name or the type its sender declared. An upload is all or nothing: a refusal before anything is written leaves no folder, and a failure
 // after the files moved removes the version's folder, so neither a row nor a file stays.
 import { randomUUID } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync } from "fflate";
 import { invalid, notFound, ok, type Outcome } from "./outcome";
@@ -46,6 +46,12 @@ function drawingKind(b: Buffer): DrawingKind | null {
   return isPng(b) ? "png" : isPdf(b) ? "pdf" : isSvg(b) ? "svg" : null;
 }
 
+/** A copy that only its owner can read: copyFile keeps the source's mode, and a sender's temporary file or a fixture may be wider. */
+function store(from: string, to: string): void {
+  copyFileSync(from, to);
+  chmodSync(to, 0o600);
+}
+
 const versionDir = (rt: Runtime, modelId: string, versionId: string): string => join(rt.config.dataDir, "files", modelId, versionId);
 
 /** Adds the next version of a model (max + 1) with its files; refused wholly when any file is not what it should be. */
@@ -72,9 +78,9 @@ export async function addVersion(
   let stored = false;
   try {
     mkdirSync(dir, { recursive: true });
-    copyFileSync(input.threemf.path, join(dir, "model.3mf"));
-    copyFileSync(input.preview.path, join(dir, "preview.png"));
-    for (const d of drawings) copyFileSync(d.path, join(dir, `${d.id}.${d.kind}`));
+    store(input.threemf.path, join(dir, "model.3mf"));
+    store(input.preview.path, join(dir, "preview.png"));
+    for (const d of drawings) store(d.path, join(dir, `${d.id}.${d.kind}`));
     const out = mutation(rt, (): Outcome<Version> => {
       if (!rt.store.model(modelId)) return notFound(`No model ${modelId}.`);
       const number = (rt.store.maxVersionNumber(modelId) ?? 0) + 1;

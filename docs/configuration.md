@@ -13,7 +13,7 @@ An empty value counts as unset, so a copied `.env.example` with a blank line kee
 | `PUBLIC_URL`             | yes      |                        | The app's public URL, such as `https://preview.example.com`: links in sign-in mails and MCP results, the customers' links, the issuer of OAuth tokens. A trailing `/` is dropped.                                       |
 | `PREVIEW_SECRET`         | yes      |                        | At least 32 random characters (`openssl rand -base64 48`) that sign sessions and tokens. Changing it signs everyone out.                                                                                                |
 | `PREVIEW_ALLOWED_EMAILS` |          | empty: nobody          | Who may sign in: addresses and `@domain` entries, comma-separated, case ignored. An address taken off the list loses its sessions and MCP grants at the next start. Customers never sign in: they only open their link. |
-| `PREVIEW_MAX_UPLOAD_MB`  |          | `100`                  | The largest upload a request may send, in whole megabytes (at least 1): a version's 3MF, its preview and its drawings together. A larger one is refused with 413.                                                       |
+| `PREVIEW_MAX_UPLOAD_MB`  |          | `100`                  | The largest upload a request may send, in whole megabytes (at least 1): a version's 3MF, its preview and its drawings together (and none of them alone may be larger). A larger one is refused with 413.                |
 | `PREVIEW_LOG_LEVEL`      |          | `info`                 | The log's level: `debug`, `info`, `warn`, `error` or `silent` (read by `backend/log.ts`). The log is JSON on stdout and never holds a token, a link token, a file's name or an email address.                           |
 | `DATA_DIR`               |          | `/data` (in the image) | Where the data lives (below).                                                                                                                                                                                           |
 | `TZ`                     |          | `UTC`                  | The time zone of the log's and the app's dates, such as `Europe/Berlin`.                                                                                                                                                |
@@ -50,7 +50,7 @@ next-app-kit's `signInFromEnv` reads these under the prefix `PREVIEW` (`backend/
 | `PUID`, `PGID`        | the owner of `/data` (1000 if that's root) | Who the server runs as. The entrypoint (`docker-entrypoint.mjs`) starts as root only to give `DATA_DIR` itself to this user and switch to it; the files in it are never chowned.                                                      |
 | `NODE_EXTRA_CA_CERTS` | none                                       | A PEM file of extra certificate authorities to trust, for an SMTP server or proxy with an internal CA. The image is distroless (no shell, no `update-ca-certificates`), so this is the way to add one: mount the file and point here. |
 
-The image itself sets `NODE_ENV=production`, `PORT=3000`, `HOSTNAME=0.0.0.0` and `DATA_DIR=/data`, and runs Node with `--use-system-ca`.
+The standalone server must bind a non-loopback `HOSTNAME`: bound to `127.0.0.1`, the proxy's rewrites proxy to the server itself and pages hang. The image itself sets `NODE_ENV=production`, `PORT=3000`, `HOSTNAME=0.0.0.0` and `DATA_DIR=/data`, and runs Node with `--use-system-ca`.
 
 **An API token from the server**, without a browser (the first one, or one for a script such as a workshop's upload): next-app-kit's command, run in the container as its user, for an address in `PREVIEW_ALLOWED_EMAILS` (also one that never signed in). It prints the token once:
 
@@ -70,5 +70,7 @@ DATA_DIR/
   files/<model>/<version>/   a version's model.3mf, preview.png and drawings
   (your logo, if PREVIEW_LOGO points into DATA_DIR)
 ```
+
+The entrypoint runs with umask 077: the databases (with their `-wal` and `-shm`) and the uploaded files are mode 0600, their folders 0700, readable by the server's user alone.
 
 **A backup needs all of it**: both SQLite files, copied with `sqlite3 <file> ".backup <copy>"` (not `cp`) while the app runs, and every file beside them.

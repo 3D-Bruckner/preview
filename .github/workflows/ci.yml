@@ -90,6 +90,26 @@ jobs:
           for i in $(seq 1 20); do [ "$(docker inspect --format '{{.State.Health.Status}}' smoke)" = healthy ] && break; sleep 3; done
           test "$(docker inspect --format '{{.State.Health.Status}}' smoke)" = healthy
           docker logs smoke
+      - name: A customer's page and files are served through their link
+        run: |
+          B=http://127.0.0.1:3000
+          # The kit's command for the operator makes a token that may write (docs/configuration.md).
+          TOKEN=$(docker exec -u 1000 smoke /nodejs/bin/node node_modules/next-app-kit/dist/cli.js token --prefix PREVIEW --token-prefix preview_ \
+            --email owner@example.com --name smoke --scope read+write --days 1 | grep -o 'preview_[A-Za-z0-9_-]*' | head -1)
+          test -n "$TOKEN"
+          api() { curl -sf -H "authorization: Bearer $TOKEN" "$@"; }
+          CUSTOMER=$(api -H 'content-type: application/json' -d '{"name":"Smoke"}' $B/api/v1/customers | jq -r .id)
+          MODEL=$(api -H 'content-type: application/json' -d "{\"customerId\":\"$CUSTOMER\",\"title\":\"Ramp\"}" $B/api/v1/models | jq -r .id)
+          UPLOAD=$(api -F model=@backend/fixtures/ramp.3mf -F preview=@backend/fixtures/preview.png $B/api/models/$MODEL/versions)
+          VERSION=$(echo "$UPLOAD" | jq -r .id)
+          LINK=$(echo "$UPLOAD" | jq -r .link)
+          K=${LINK#*/k/}; K=${K%%/*}
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/$K)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/$K/$MODEL)" = 200
+          curl -sD /tmp/model.headers -o /dev/null -w '%{http_code}' $B/k/$K/files/$VERSION/model.3mf | grep -qx 200
+          grep -i '^content-security-policy:' /tmp/model.headers | grep -q sandbox
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/not-a-token-0000000000000000000/$MODEL)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' $B/k/not-a-token-0000000000000000000/files/$VERSION/model.3mf)" = 404
       # For arm64 servers as well as amd64 ones.
       - uses: docker/setup-qemu-action@v4
         if: github.ref == 'refs/heads/main'

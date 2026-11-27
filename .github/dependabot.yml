@@ -1,5 +1,6 @@
-# Dependency bumps as pull requests with CI run (conventions: repo-setup/dependabot). They are merged by hand: this private repository on
-# the free plan has no auto-merge and no rulesets (CLAUDE.md). Security updates (switched on in the repository's settings) come at once
+# Dependency bumps as pull requests with CI run (conventions: repo-setup/dependabot). The repository is public, so main's ruleset requires
+# the checks and .github/workflows/dependabot-automerge.yml merges patch and minor bumps by itself once they are green; majors are merged
+# by hand (CLAUDE.md). Security updates (switched on in the repository's settings) come at once
 # and skip the cooldown; everything else waits two weeks after a release and comes grouped on Monday mornings.
 version: 2
 

@@ -6,16 +6,20 @@ COPY package.json package-lock.json .npmrc ./
 RUN npm ci --ignore-scripts
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build && mkdir /data
+# next.config's outputFileTracingExcludes covers the routes; the traces of instrumentation.ts and proxy.ts pull in all of backend/, so the
+# tests, fixtures and test helpers are taken out of the standalone copy here as well.
+RUN npm run build && mkdir /data \
+ && find .next/standalone/backend \( -name '*.test.ts' -o -name fixtures -o -name testing \) -prune -exec rm -rf {} +
 
 # Runtime: only the standalone server and its traced deps. Distroless: Node and the libraries it links against, and no shell, package
 # manager or npm, so nothing of that kind can be vulnerable or be used by someone who got in (conventions: Next.js app).
 FROM gcr.io/distroless/nodejs26-debian13
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 DATA_DIR=/data
-COPY --from=build --chown=1000:1000 /app/.next/standalone ./
-COPY --from=build --chown=1000:1000 /app/.next/static ./.next/static
-COPY --from=build --chown=1000:1000 /app/public ./public
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+# The app is root's and only readable by the runtime user; /data is the one place it writes (the entrypoint hands DATA_DIR to its owner).
 COPY --from=build --chown=1000:1000 /data /data
 COPY docker-entrypoint.mjs ./
 VOLUME /data

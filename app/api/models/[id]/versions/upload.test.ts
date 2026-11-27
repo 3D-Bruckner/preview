@@ -115,4 +115,11 @@ describe("POST /api/models/[id]/versions", () => {
     expect(await send([big, previewPng])).toEqual({ status: 413, body: { error: "Eine Datei ist zu groß." } });
     expect(storedFiles()).toEqual([]);
   });
+
+  it("answers 413 for files that are each under PREVIEW_MAX_UPLOAD_MB but over it together", async () => {
+    rt.config.maxUploadMb = 1;
+    const half = (field: string, name: string): Part => [field, new Blob([new Uint8Array(600 * 1024)]), name];
+    expect(await send([half("model", "a.3mf"), half("preview", "b.png")])).toEqual({ status: 413, body: { error: "Eine Datei ist zu groß." } });
+    expect(storedFiles()).toEqual([]);
+  });
 });

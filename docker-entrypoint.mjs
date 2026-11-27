@@ -3,6 +3,9 @@
 // never the files in it. A Node script, because the distroless image has no shell: the server is loaded into this process once it has given up root.
 import { chownSync, statSync } from "node:fs";
 
+// Everything the server creates (the databases and their -wal/-shm, the uploaded files, the folders) is for its user alone: 0600/0700.
+process.umask(0o077);
+
 // Started with `user:`: nothing to switch.
 if (process.getuid?.() === 0) {
   const dataDir = process.env.DATA_DIR ?? "/data";

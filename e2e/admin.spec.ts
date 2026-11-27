@@ -100,3 +100,17 @@ test("an empty drawing file is left out of an upload and the others are kept", a
   await expect(page.getByRole("status").filter({ hasText: "Version 1 hochgeladen" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Versionen" }).getByRole("listitem")).toContainText("1 Zeichnung");
 });
+
+test("signed out, an admin page's redirect does not carry the customer's name or the model's title", async ({ request }) => {
+  const c = customer(unique("Geheimkunde"));
+  const m = model(c, unique("Geheimmodell"));
+  const pages: [string, string][] = [
+    [`/customers/${c.id}`, c.name],
+    [`/models/${m.id}`, m.title],
+  ];
+  for (const [path, secret] of pages) {
+    const res = await request.get(path, { maxRedirects: 0 });
+    expect(res.status()).toBe(307);
+    expect(await res.text()).not.toContain(secret);
+  }
+});

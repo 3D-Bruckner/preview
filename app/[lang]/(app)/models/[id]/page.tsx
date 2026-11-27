@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCustomer, getModel, listVersions } from "@/backend";
@@ -12,6 +13,8 @@ import { UploadVersion } from "./UploadVersion";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/models/[id]">): Promise<Metadata> {
   const { lang, id } = await params;
+  // Signed out, the title must not name the model: the redirect's body carries the metadata.
+  if (!(await runtime().person(await headers()))) return { title: copyFor(lang).home.title };
   const m = getModel(runtime(), id);
   return { title: m.ok ? m.value.title : copyFor(lang).home.title };
 }

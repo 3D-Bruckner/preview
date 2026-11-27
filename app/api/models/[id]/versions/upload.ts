@@ -20,9 +20,11 @@ export async function uploadVersion(rt: Runtime, req: Request, modelId: string):
   }
   const model = getModel(rt, modelId);
   if (!model.ok) return refuse(404, t.noModel);
+  const maxBytes = rt.config.maxUploadMb * 1024 * 1024;
   let upload: Multipart;
   try {
-    upload = await readMultipart(req, { maxFileBytes: rt.config.maxUploadMb * 1024 * 1024, maxFiles: MAX_DRAWINGS + 2, types: UPLOAD_TYPES });
+    // The kit caps each file; the request's total is checked below. No single file may exceed the total either.
+    upload = await readMultipart(req, { maxFileBytes: maxBytes, maxFiles: MAX_DRAWINGS + 2, types: UPLOAD_TYPES });
   } catch (e) {
     if (!(e instanceof MultipartError)) throw e;
     rt.log.info({ modelId, status: e.status, code: e.code }, "version upload refused");
@@ -30,6 +32,7 @@ export async function uploadVersion(rt: Runtime, req: Request, modelId: string):
     return refuse(e.status, text);
   }
   try {
+    if (upload.files.reduce((sum, f) => sum + f.size, 0) > maxBytes) return refuse(413, t.tooLarge);
     const named = (field: string) => upload.files.filter((f) => f.field === field);
     const [threemf, ...moreModels] = named("model");
     const [preview, ...morePreviews] = named("preview");

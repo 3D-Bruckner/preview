@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
   // The kit's command for the server's operator (`node node_modules/next-app-kit/dist/cli.js token …`, docs/configuration.md) is imported
   // by no route, so the standalone build wouldn't trace it.
   outputFileTracingIncludes: { "/**": ["./node_modules/next-app-kit/dist/**"] },
+  // Tests, fixtures and test helpers under backend/ are imported by no route (the e2e seed and unit tests reach them), so they stay out of the image.
+  outputFileTracingExcludes: { "*": ["backend/**/*.test.ts", "backend/fixtures/**", "backend/testing/**"] },
   // The root layout is in app/[lang] (conventions: code/language), so an address no route matches gets app/global-not-found.tsx.
   experimental: { globalNotFound: true },
   // No page is ever framed: a page of another site must not overlay a "Save", "Delete" or "Allow" click. A customer's files and the logo
