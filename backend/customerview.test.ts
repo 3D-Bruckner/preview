@@ -51,7 +51,7 @@ describe("customerView", () => {
         id: ramp.id,
         title: "Ramp",
         description: "For the step",
-        latest: { number: 2, createdAt: v2.createdAt, previewUrl: `${files(a.link!, v2.id)}/preview.png` },
+        latest: { number: 2, createdAt: v2.createdAt, note: "2 cm wider", previewUrl: `${files(a.link!, v2.id)}/preview.png` },
       },
     ]);
   });

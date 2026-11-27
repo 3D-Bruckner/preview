@@ -84,7 +84,7 @@ test("a11y: a customer's page and a model's page", async ({ page }) => {
   await version(m, { note: "Erster Entwurf" });
   await version(m, { note: "Breiter", drawings: [`${process.cwd()}/backend/fixtures/preview.png`] });
   for (const [path, heading] of [
-    [`/k/${c.link}`, "Modelle für Barrierefrei"],
+    [`/k/${c.link}`, "Deine Modelle"],
     [`/k/${c.link}/${m.id}`, "Rampe"],
   ] as const) {
     await page.goto(path);

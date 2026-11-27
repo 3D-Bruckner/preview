@@ -2,7 +2,9 @@
 // aria-hidden; an icon-only control carries an aria-label.
 export {
   CircleAlert as ProblemIcon,
+  Box as ModelsIcon,
   Check as SavedIcon,
+  Clock as ChangedIcon,
   KeyRound as TokenIcon,
   LogOut as SignOutIcon,
   Moon as DarkIcon,

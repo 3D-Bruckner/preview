@@ -72,9 +72,13 @@ test("a customer's page shows their models as tiles with previews, loads no 3MF,
     const r = await page.goto(`/k/${a.link}`);
     expect(r?.status()).toBe(200);
     expect(r?.headers()["x-robots-tag"]).toBe("noindex, nofollow");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(`Modelle für ${a.name}`);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Deine Modelle");
+    await expect(page.getByText(`Für ${a.name}`)).toBeVisible();
+    await expect(page.getByRole("main").getByRole("list").first()).toContainText("1 Modell");
     const tile = page.getByRole("link", { name: /Rampe/ });
     await expect(tile).toContainText("Version 2");
+    await expect(tile).toContainText("Neue Version");
+    await expect(tile).toContainText("Zuletzt: 2 cm breiter");
     await expect(tile).toHaveAttribute("href", `/k/${a.link}/${ramp.id}`);
     await expect.poll(() => tile.locator("img").evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBeGreaterThan(0);
   });
@@ -192,13 +196,28 @@ test("a customer whose language is English gets English, until the visitor switc
   await version(model(anna, "Ramp"));
   await page.goto(`/k/${anna.link}`);
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Models for Anne");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your models");
+  await expect(page.getByText("For Anne")).toBeVisible();
   expect(await context.cookies()).toEqual([]);
 
   await page.getByRole("button", { name: "Deutsch" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Modelle für Anne");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Deine Modelle");
   expect(new URL(page.url()).pathname).toBe(`/k/${anna.link}`);
   expect((await context.cookies()).map((c) => c.name)).toEqual(["preview_lang"]);
+});
+
+test("the theme switch sets dark for the visitor and keeps it; only the switch sets its cookie", async ({ page, context }) => {
+  const c = customer("Dora");
+  await version(model(c, "Rampe"));
+  await page.goto(`/k/${c.link}`);
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.*/);
+  await page.getByRole("button", { name: "Dunkel" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Dunkel" })).toHaveAttribute("aria-pressed", "true");
+  expect(new URL(page.url()).pathname).toBe(`/k/${c.link}`);
+  expect((await context.cookies()).map((x) => x.name)).toEqual(["preview_theme"]);
+  await page.getByRole("button", { name: "Auto" }).click();
+  await expect(page.locator("html")).not.toHaveAttribute("data-theme", /.*/);
 });
 
 test("the customer pages show the instance's brand, its logo and its imprint, and name nobody else", async ({ page }) => {

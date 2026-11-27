@@ -8,7 +8,7 @@ import type { Runtime } from "./runtime";
 export type CustomerView = {
   customer: { name: string };
   /** The customer's models that have a version, newest first; a model with none has nothing to show yet. */
-  models: { id: string; title: string; description: string | null; latest: { number: number; createdAt: string; previewUrl: string } }[];
+  models: { id: string; title: string; description: string | null; latest: { number: number; createdAt: string; note: string | null; previewUrl: string } }[];
 };
 
 export type CustomerVersionView = {
@@ -59,7 +59,7 @@ export function customerView(rt: Runtime, token: string): CustomerView | null {
       id: m.id,
       title: m.title,
       description: m.description,
-      latest: { number: latest.number, createdAt: latest.created_at, previewUrl: `${filesUrl(token, latest.id)}/preview.png` },
+      latest: { number: latest.number, createdAt: latest.created_at, note: latest.note, previewUrl: `${filesUrl(token, latest.id)}/preview.png` },
     });
   }
   return { customer: { name: customer.name }, models };

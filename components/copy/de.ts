@@ -177,6 +177,13 @@ export const de: Copy = {
   },
   customer: {
     title: (name: string) => `Modelle für ${name}`,
+    yourModels: "Deine Modelle",
+    forName: (name: string) => `Für ${name}`,
+    lead: "Hier siehst du alles, was für dich entworfen wird. Sobald eine neue Version fertig ist, erscheint sie hier.",
+    modelCount: (n: number) => (n === 1 ? "1 Modell" : `${n} Modelle`),
+    lastChanged: "zuletzt geändert",
+    newVersion: "Neue Version",
+    latestNote: "Zuletzt:",
     empty: "Noch gibt es keine Modelle zu sehen.",
     version: (n: number) => `Version ${n}`,
     allModels: "Alle Modelle",
