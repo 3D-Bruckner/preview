@@ -19,8 +19,10 @@ export function UploadVersion({ modelId }: { modelId: string }) {
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    // An empty file input still sends a nameless, empty file: leave it out.
-    for (const file of fd.getAll("drawing")) if (file instanceof File && file.size === 0) fd.delete("drawing");
+    // An empty file input still sends a nameless, empty file: leave those out and keep the others.
+    const drawings = fd.getAll("drawing");
+    fd.delete("drawing");
+    for (const file of drawings) if (file instanceof File && file.size > 0) fd.append("drawing", file);
     setSending(true);
     setResult(null);
     try {

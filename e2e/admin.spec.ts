@@ -1,4 +1,6 @@
 // The admin pages: the person who runs the instance manages customers, their links, models and versions. Signed out, none opens.
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { PHONE } from "./app";
 import { customer, FIXTURE, model } from "./seed";
@@ -83,4 +85,18 @@ test("create a customer, copy its link, add a model, upload a version, renew and
   expect((await request.get(second)).status()).toBe(404);
   await page.goto("/");
   await expect(page.getByRole("link", { name })).toContainText("Kein Link");
+});
+
+test("an empty drawing file is left out of an upload and the others are kept", async ({ page }) => {
+  const c = customer(unique("Leer"));
+  const m = model(c, "Rampe");
+  const empty = join(mkdtempSync(join(process.env.E2E_DATA_DIR!, "seed-")), "empty.png");
+  writeFileSync(empty, "");
+  await signIn(page, `/models/${m.id}`);
+  await page.getByLabel("3MF-Datei").setInputFiles(FIXTURE("ramp.3mf").path);
+  await page.getByLabel("Vorschaubild (PNG)").setInputFiles(FIXTURE("preview.png").path);
+  await page.getByLabel(/^Zeichnungen/).setInputFiles([empty, FIXTURE("preview.png").path]);
+  await page.getByRole("button", { name: "Hochladen" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Version 1 hochgeladen" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Versionen" }).getByRole("listitem")).toContainText("1 Zeichnung");
 });
