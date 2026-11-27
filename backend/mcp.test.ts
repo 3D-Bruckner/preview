@@ -109,3 +109,71 @@ describe("API tokens", () => {
     expect((await tool<{ tokens: { id: string }[] }>("list_api_tokens", {}, me)).tokens.map((t) => t.id)).toEqual([made.id]);
   });
 });
+
+describe("customers", () => {
+  it("create_customer returns the link and guides to create_model; the language defaults to German", async () => {
+    const me = await owner();
+    const c = await tool<{ id: string; language: string; link_url: string; admin_url: string }>("create_customer", { name: "Ada" }, me);
+    expect(c.language).toBe("de");
+    expect(c.link_url).toMatch(/^https:\/\/preview\.example\.com\/k\/[\w-]{20,}$/);
+    expect(c.admin_url).toBe(`${BASE}/customers/${c.id}`);
+    expect(said(c)).toMatch(/create_model/);
+    expect(said(c)).toContain(c.link_url);
+  });
+
+  it("update_customer, get_customer and list_customers", async () => {
+    const me = await owner();
+    expect(said(await tool("list_customers", {}, me))).toMatch(/create_customer/);
+    const c = await tool<{ id: string }>("create_customer", { name: "Ada", language: "en" }, me);
+    const u = await tool<{ name: string; language: string }>("update_customer", { id: c.id, name: "Ada L.", language: "de" }, me);
+    expect(u).toMatchObject({ name: "Ada L.", language: "de" });
+    expect(await tool("get_customer", { id: c.id }, me)).toMatchObject({ id: c.id, name: "Ada L." });
+    expect((await tool<{ customers: unknown[] }>("list_customers", {}, me)).customers).toHaveLength(1);
+    expect(await refusal("get_customer", { id: "nope" }, me)).toMatch(/No customer/);
+    expect(await refusal("update_customer", { id: c.id, name: " " }, me)).toBeTruthy();
+  });
+
+  it("renew_link says the old link stopped working; revoke_link then get_customer has no link_url", async () => {
+    const me = await owner();
+    const c = await tool<{ id: string; link_url: string }>("create_customer", { name: "Ada" }, me);
+    const renewed = await tool<{ link_url: string }>("renew_link", { id: c.id }, me);
+    expect(renewed.link_url).not.toBe(c.link_url);
+    expect(said(renewed)).toMatch(/old link (has )?stopped working/);
+    expect(said(renewed)).toContain(renewed.link_url);
+    const revoked = await tool<{ link_url: string | null }>("revoke_link", { id: c.id }, me);
+    expect(revoked.link_url).toBeNull();
+    expect(said(revoked)).toMatch(/renew_link/);
+    const got = await tool<{ link_url: string | null }>("get_customer", { id: c.id }, me);
+    expect(got.link_url).toBeNull();
+    expect(said(got)).toMatch(/renew_link/);
+  });
+});
+
+describe("models", () => {
+  it("create_model carries the model's link and guides to the upload; a revoked customer link gives none", async () => {
+    const me = await owner();
+    const c = await tool<{ id: string; link_url: string }>("create_customer", { name: "Ada" }, me);
+    const m = await tool<{ id: string; link_url: string | null; admin_url: string }>("create_model", { customerId: c.id, title: "Bracket" }, me);
+    expect(m.link_url).toBe(`${c.link_url}/${m.id}`);
+    expect(m.admin_url).toBe(`${BASE}/models/${m.id}`);
+    expect(said(m)).toMatch(new RegExp(`POST /api/models/${m.id}/versions`));
+    await tool("revoke_link", { id: c.id }, me);
+    expect((await tool<{ link_url: string | null }>("update_model", { id: m.id, title: "Bracket 2" }, me)).link_url).toBeNull();
+    expect(await refusal("create_model", { customerId: "nope", title: "x" }, me)).toMatch(/No customer/);
+  });
+
+  it("list_models filters by customer; list_versions of a model without versions says to upload one", async () => {
+    const me = await owner();
+    const a = await tool<{ id: string }>("create_customer", { name: "Ada" }, me);
+    const b = await tool<{ id: string }>("create_customer", { name: "Bob" }, me);
+    const m = await tool<{ id: string }>("create_model", { customerId: a.id, title: "One" }, me);
+    await tool("create_model", { customerId: b.id, title: "Two" }, me);
+    expect((await tool<{ models: unknown[] }>("list_models", {}, me)).models).toHaveLength(2);
+    const mine = await tool<{ models: { id: string }[] }>("list_models", { customerId: a.id }, me);
+    expect(mine.models.map((x) => x.id)).toEqual([m.id]);
+    const v = await tool<{ versions: unknown[] }>("list_versions", { modelId: m.id }, me);
+    expect(v.versions).toEqual([]);
+    expect(said(v)).toMatch(/\/api\/models\/.*\/versions/);
+    expect(await refusal("list_versions", { modelId: "nope" }, me)).toMatch(/No model/);
+  });
+});

@@ -101,3 +101,37 @@ describe("the table", () => {
     expect(() => checkOpsMirrorTools(REST_OPS, [...tools, { name: "a_tool_without_an_operation" }])).toThrow();
   });
 });
+
+describe("customers and models", () => {
+  it("a read token gets 403 on POST /customers, and may GET", async () => {
+    const auth = await rt.auth();
+    const reader = await createApiToken(auth, await owner(), { name: "reader", scope: "read", expiresInDays: null });
+    if ("error" in reader) throw new Error(reader.error);
+    expect((await withToken("POST", "/customers", reader.token, { name: "Ada" })).status).toBe(403);
+    expect((await withToken("GET", "/customers", reader.token)).status).toBe(200);
+  });
+
+  it("answers plain data: no guidance, links and refusals by their reason", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const made = await call("POST", "/customers", { name: "Ada", language: "en" }, me);
+    expect(made.status).toBe(201);
+    const c = await json<{ id: string; link_url: string; guidance?: unknown }>(made);
+    expect(c.link_url).toMatch(/\/k\//);
+    expect(c.guidance).toBeUndefined();
+    expect((await call("POST", "/customers", { name: "" }, me)).status).toBe(400);
+    expect((await call("GET", "/customers/nope", undefined, me)).status).toBe(404);
+    expect((await call("PATCH", `/customers/${c.id}`, { note: "hi" }, me)).status).toBe(200);
+    const mm = await call("POST", "/models", { customerId: c.id, title: "Bracket" }, me);
+    expect(mm.status).toBe(201);
+    const m = await json<{ id: string; link_url: string }>(mm);
+    expect(m.link_url).toBe(`${c.link_url}/${m.id}`);
+    expect((await call("POST", "/models", { customerId: "nope", title: "x" }, me)).status).toBe(404);
+    expect((await json<{ models: unknown[] }>(await call("GET", `/models?customer=${c.id}`, undefined, me))).models).toHaveLength(1);
+    expect((await json<{ versions: unknown[] }>(await call("GET", `/models/${m.id}/versions`, undefined, me))).versions).toEqual([]);
+    expect((await call("GET", "/models/nope/versions", undefined, me)).status).toBe(404);
+    const revoked = await call("DELETE", `/customers/${c.id}/link`, undefined, me);
+    expect((await json<{ link_url: unknown }>(revoked)).link_url).toBeNull();
+    const renewed = await call("POST", `/customers/${c.id}/link`, undefined, me);
+    expect((await json<{ link_url: unknown }>(renewed)).link_url).toMatch(/\/k\//);
+  });
+});

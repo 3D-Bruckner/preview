@@ -5,12 +5,33 @@ preview's MCP server is at `<PUBLIC_URL>/mcp` (Streamable HTTP, POST only), for 
 ## How the tools answer
 
 - **The same domain functions as REST and the web app.** Each tool has a REST operation under `/api/v1` that mirrors it (`checkOpsMirrorTools` in `backend/rest.test.ts`).
-- **Inputs are camelCase**, the same wire names as REST (`expiresInDays`).
+- **Inputs are camelCase**, the same wire names as REST (`expiresInDays`, `customerId`). Results are snake_case, as REST answers them.
 - **Every result carries `guidance`**: English lines, built from what the call did, about what matters next. The tool descriptions say what Claude needs before a call; `guidance` what it needs after.
 - **A refusal** is an MCP error with the domain's English message.
-- **The server's instructions** (`MCP_INSTRUCTIONS`) say what the app is and that customers never sign in.
+- **The server's instructions** (`MCP_INSTRUCTIONS`) say what the app is, that customers never sign in, and that versions are uploaded with the REST multipart route (`POST /api/models/{id}/versions`) from the workshop, not over MCP; every version is visible on the customer's link at once.
+- **Links.** Every customer and model result carries `link_url` (`<PUBLIC_URL>/k/<token>` for a customer, `/k/<token>/<modelId>` for a model; null once the customer's link is revoked) and `admin_url` (`/customers/<id>`, `/models/<id>` in the web app).
 
-## The 3 tools
+## The 13 tools
+
+### Customers
+
+| Tool              | Input                                                  | Returns                                           | Guidance says                                             |
+| ----------------- | ------------------------------------------------------ | ------------------------------------------------- | --------------------------------------------------------- |
+| `list_customers`  | none                                                   | `customers` by name, each with `link_url`         | `create_customer` when there are none                     |
+| `create_customer` | `name`, `note?`, `language?` (`de` default, or `en`)   | the customer, with `link_url`                     | send them the link; `create_model` adds their first model |
+| `update_customer` | `id`, any of `name`, `note` (empty clears), `language` | the customer                                      | the link is the same as before                            |
+| `get_customer`    | `id`                                                   | the customer, with `link_url` (null when revoked) | renew or revoke the link                                  |
+| `renew_link`      | `id`                                                   | the customer with the new `link_url`              | the old link stopped working; send the new one            |
+| `revoke_link`     | `id`                                                   | the customer, `link_url` null                     | nobody can open their page until `renew_link`             |
+
+### Models and versions
+
+| Tool            | Input                                              | Returns                                                      | Guidance says                                                                                |
+| --------------- | -------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `list_models`   | `customerId?`                                      | `models`, newest first, each with `link_url` and `admin_url` | `create_model` when there are none; `list_versions` for a model's versions                   |
+| `create_model`  | `customerId`, `title`, `description?`              | the model                                                    | upload versions with `POST /api/models/{id}/versions`; its link, or that the link is revoked |
+| `update_model`  | `id`, any of `title`, `description` (empty clears) | the model                                                    | the customer sees it on their next visit                                                     |
+| `list_versions` | `modelId`                                          | `versions`, newest first: number, note, drawings             | with none, how to upload one; otherwise that the customer sees all of them                   |
 
 ### API tokens
 
