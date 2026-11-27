@@ -38,7 +38,8 @@ interface Look {
 
 /** What the view shows now, from a screenshot of it, read in the page. */
 async function look(page: Page, view: Locator): Promise<Look> {
-  const png = (await view.screenshot()).toString("base64");
+  // The model only: the tools over the view are text and lines whose anti-aliasing differs between machines.
+  const png = (await view.screenshot({ style: "[data-view-tools] { visibility: hidden }" })).toString("base64");
   return page.evaluate(async (b64) => {
     const img = new Image();
     img.src = `data:image/png;base64,${b64}`;

@@ -153,7 +153,7 @@ function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = nu
           </div>
         )}
         {state !== "error" && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start gap-2">
+          <div data-view-tools className="pointer-events-none absolute inset-x-3 top-3 flex flex-wrap items-start gap-2">
             <div role="group" aria-label={t.view.label} className={bar}>
               {DIRECTIONS.map((d) => (
                 <button
