@@ -6,12 +6,15 @@ import { openRuntime, type Runtime } from "./runtime";
 
 export { API_TOKEN_PREFIX, APP_NAME, CONSENT_PAGE, ENV_PREFIX, SIGN_IN_PAGE, type MailWording } from "./accounts";
 export type { Brand, Config } from "./config";
+export { createCustomer, customerByToken, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer, type Language } from "./customers";
 export { healthResponse } from "./health";
 export { log } from "./log";
 export { MCP_INSTRUCTIONS, mcpContext } from "./mcp";
+export { createModel, getModel, listModels, updateModel, type Model } from "./models";
 export type { Outcome, Reason } from "./outcome";
 export { OPEN_API, REST_OPS } from "./rest";
 export type { Runtime } from "./runtime";
+export { listVersions, type Version } from "./versions";
 
 // One runtime per process, kept on globalThis so Next's dev server, which reloads modules, doesn't open the database twice.
 const g = globalThis as { __preview?: Runtime };

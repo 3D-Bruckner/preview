@@ -1,3 +1,51 @@
 // The tables of preview.sqlite as kysely sees them, one entry per table that backend/db/migrations.ts creates. Rows come out of the store
-// as Selectable<…> (snake_case, as stored); the domain turns them into its own types. No table yet.
-export type DB = Record<string, never>;
+// as Selectable<…> (snake_case, as stored); the domain turns them into its own types.
+
+export interface CustomersTable {
+  id: string;
+  name: string;
+  note: string | null;
+  language: "de" | "en";
+  /** The token in the customer's link; null once revoked. */
+  link_token: string | null;
+  created_at: string;
+}
+
+export interface ModelsTable {
+  id: string;
+  customer_id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VersionsTable {
+  id: string;
+  model_id: string;
+  number: number;
+  note: string | null;
+  threemf_file: string;
+  preview_file: string;
+  created_at: string;
+}
+
+export interface DrawingsTable {
+  id: string;
+  version_id: string;
+  file: string;
+  kind: "png" | "svg" | "pdf";
+  position: number;
+}
+
+export type DB = {
+  customers: CustomersTable;
+  models: ModelsTable;
+  versions: VersionsTable;
+  drawings: DrawingsTable;
+};
+
+export type CustomerRow = CustomersTable;
+export type ModelRow = ModelsTable;
+export type VersionRow = VersionsTable;
+export type DrawingRow = DrawingsTable;

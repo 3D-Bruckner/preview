@@ -11,9 +11,8 @@ describe("openDatabase", () => {
       expect(raw.pragma("journal_mode", { simple: true })).toBe("wal");
       expect(raw.pragma("foreign_keys", { simple: true })).toBe(1);
       expect(raw.pragma("user_version", { simple: true })).toBe(MIGRATIONS.length);
-      // No table yet: the domain's migrations come with it.
       const tables = raw.prepare("select name from sqlite_master where type = 'table' order by name").pluck().all();
-      expect(tables).toEqual([]);
+      expect(tables).toEqual(["customers", "drawings", "models", "versions"]);
     } finally {
       raw.close();
     }
