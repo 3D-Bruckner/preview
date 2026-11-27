@@ -20,12 +20,12 @@
     "generate": "node scripts/generate-openapi.mjs"
   },
   "dependencies": {
-    "@better-auth/api-key": "1.7.21",
-    "@better-auth/cimd": "1.7.21",
-    "@better-auth/core": "1.7.21",
-    "@better-auth/mcp": "1.7.21",
-    "@better-auth/oauth-provider": "1.7.21",
-    "@better-auth/passkey": "1.7.21",
+    "@better-auth/api-key": "1.7.22",
+    "@better-auth/cimd": "1.7.22",
+    "@better-auth/core": "1.7.22",
+    "@better-auth/mcp": "1.7.22",
+    "@better-auth/oauth-provider": "1.7.22",
+    "@better-auth/passkey": "1.7.22",
     "@fontsource-variable/archivo": "5.3.0",
     "@fontsource-variable/hanken-grotesk": "5.3.0",
     "@modelcontextprotocol/server": "2.4.0",
