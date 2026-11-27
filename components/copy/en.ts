@@ -14,6 +14,18 @@ export const en = {
     title: "Customers",
     empty: "No customers yet.",
   },
+  versions: {
+    signedOut: "Please sign in first.",
+    readOnly: "This token may only read",
+    noModel: "This model doesn't exist (any more).",
+    noModelFile: "The upload needs one 3MF file in the field “model”.",
+    noPreview: "The upload needs one PNG in the field “preview”.",
+    tooManyDrawings: "At most 10 drawings per version.",
+    notAccepted: "Only a 3MF, a PNG, an SVG or a PDF can be uploaded.",
+    unreadable: "A file is not what its kind says: the model must be a 3MF, the preview a PNG, a drawing a PNG, SVG or PDF.",
+    tooLarge: "A file is too large.",
+    incomplete: "The upload didn't arrive completely. Please try again.",
+  },
   signIn: {
     title: "Sign in",
     intro: "Only the people this instance allows can sign in.",

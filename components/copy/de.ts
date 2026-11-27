@@ -13,6 +13,18 @@ export const de: Copy = {
     title: "Kunden",
     empty: "Noch keine Kunden.",
   },
+  versions: {
+    signedOut: "Bitte zuerst anmelden.",
+    readOnly: "Dieser Token darf nur lesen",
+    noModel: "Dieses Modell gibt es nicht (mehr).",
+    noModelFile: "Der Upload braucht eine 3MF-Datei im Feld „model“.",
+    noPreview: "Der Upload braucht ein PNG im Feld „preview“.",
+    tooManyDrawings: "Höchstens 10 Zeichnungen pro Version.",
+    notAccepted: "Hochgeladen werden können nur 3MF, PNG, SVG und PDF.",
+    unreadable: "Eine Datei ist nicht, was ihre Art sagt: das Modell muss eine 3MF, die Vorschau ein PNG, eine Zeichnung ein PNG, SVG oder PDF sein.",
+    tooLarge: "Eine Datei ist zu groß.",
+    incomplete: "Der Upload kam nicht vollständig an. Bitte noch einmal versuchen.",
+  },
   signIn: {
     title: "Anmelden",
     intro: "Anmelden können nur die Personen, die hier freigegeben sind.",
