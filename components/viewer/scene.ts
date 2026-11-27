@@ -5,9 +5,11 @@
 // has nothing to allow.
 import {
   Box3,
+  Color,
   DirectionalLight,
   HemisphereLight,
   Mesh,
+  MeshStandardMaterial,
   NeutralToneMapping,
   PerspectiveCamera,
   PlaneGeometry,
@@ -27,9 +29,33 @@ import { ThreeMFLoader } from "three/addons/loaders/3MFLoader.js";
 import type { Facts } from "@/backend/client";
 import { tagParts, type PartMesh } from "./parts";
 
+/** The four directions the toolbar offers; iso is the one the view opens with. */
+export type CameraDirection = "iso" | "top" | "front" | "side";
+const DIRECTIONS: Record<CameraDirection, Vector3> = {
+  iso: new Vector3(0.8, 0.65, 1.4).normalize(),
+  top: new Vector3(0, 1, 0.0001).normalize(),
+  front: new Vector3(0, 0, 1),
+  side: new Vector3(1, 0, 0),
+};
+/** Width, depth and height in mm, in the 3MF's axes (x, y, z; z up). */
+export type Size = { x: number; y: number; z: number };
+const MOVE_MS = 300;
+
 export interface View {
-  /** Back to the camera the view opened with. */
-  reset(): void;
+  /** Iso, framing what is shown (the focused part, or the whole model). */
+  fit(): void;
+  /** Looks from that direction at what is shown; stops the turntable. */
+  setCamera(dir: CameraDirection): void;
+  /** Shows only that part, framed (null: everything, framed). */
+  focus(key: string | null): void;
+  /** Hides these parts (every placement); the framing stays. */
+  setHidden(keys: ReadonlySet<string>): void;
+  /** Lights that part up in the accent (null: none). */
+  highlight(key: string | null): void;
+  /** What is shown, measured. */
+  size(): Size;
+  /** The model's meshes, each named by its part's key ("" when the facts have no parts). */
+  meshes(): readonly Mesh[];
   /** Turn the turntable on or off (off for good once the visitor has moved the view, or once it has made its partial turn). */
   setAutoRotate(on: boolean): void;
   /** Handle a key on the focused view: arrows turn it, + and − zoom. True if the key was the view's. */
@@ -47,6 +73,7 @@ export const TURNTABLE_SECONDS = 4.5;
 /** A download that receives nothing for this long is given up, so the view shows its error instead of loading forever. */
 export const STALL_MS = 30_000;
 const KEY_TURN = Math.PI / 12;
+const BLACK = new Color(0x000000);
 
 /**
  * The 3MF's bytes, reporting how much has arrived (0..1, or null while the size is unknown). Throws when `signal` aborts, and when nothing
@@ -112,10 +139,17 @@ export interface ViewOptions {
   onRotating: (on: boolean) => void;
   /** Drawing failed (the loop is stopped). */
   onError: (error: unknown) => void;
+  /** Whether camera moves glide (not for a visitor who turned motion off). Default true. */
+  animate?: boolean;
+  /** The highlight's colour (the page's accent). */
+  accent?: string;
+  /** What is shown changed size (at the start, and after focus and setHidden). */
+  onSize?: (size: Size) => void;
 }
 
 export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, options: ViewOptions): View {
-  const { model } = parse(data, facts);
+  const { model, parts } = parse(data, facts);
+  const animate = options.animate ?? true;
   const scene = new Scene();
 
   // On the ground (y = 0), centred over the origin.
@@ -171,9 +205,10 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
   const aspect = mount.clientWidth / Math.max(mount.clientHeight, 1) || 1;
   const camera = new PerspectiveCamera(FOV, aspect, r / 100, r * 100);
   const vertical = (FOV * Math.PI) / 360;
-  const half = Math.min(vertical, Math.atan(Math.tan(vertical) * aspect));
-  const distance = (r / Math.sin(half)) * 1.4;
-  camera.position.copy(sphere.center).add(new Vector3(0.8, 0.65, 1.4).normalize().multiplyScalar(distance));
+  /** How far the camera stands for a sphere of radius `radius` to fit the narrower of the two angles, with room around it. */
+  const standOff = (radius: number) => (radius / Math.sin(Math.min(vertical, Math.atan(Math.tan(vertical) * camera.aspect)))) * 1.4;
+  const distance = standOff(r);
+  camera.position.copy(sphere.center).add(DIRECTIONS.iso.clone().multiplyScalar(distance));
 
   const controls = new OrbitControls(camera, canvas);
   controls.target.copy(sphere.center);
@@ -184,7 +219,6 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
   controls.autoRotate = options.autoRotate;
   controls.autoRotateSpeed = TURNTABLE_SPEED;
   controls.update(0);
-  controls.saveState();
 
   let moved = false;
   let dirty = true;
@@ -216,12 +250,69 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
   const observer = new ResizeObserver(resize);
   observer.observe(mount);
 
+  const meshes: Mesh[] = [];
+  model.traverse((o) => void (o instanceof Mesh && meshes.push(o)));
+  const keyed = (key: string) => parts.filter((p) => p.key === key).map((p) => p.mesh);
+  let focused: string | null = null;
+  let hidden: ReadonlySet<string> = new Set();
+  let move: { from: Vector3; fromTarget: Vector3; to: Vector3; toTarget: Vector3; start: number | null } | null = null;
+
+  const boxOf = (list: readonly Mesh[]) => {
+    const b = new Box3();
+    for (const m of list) b.expandByObject(m, true);
+    return b;
+  };
+  const framed = () => (focused ? keyed(focused) : meshes);
+  const size = (): Size => {
+    const b = boxOf(meshes.filter((m) => m.visible));
+    if (b.isEmpty()) return { x: 0, y: 0, z: 0 };
+    const s = b.getSize(new Vector3()).multiplyScalar(facts.unit);
+    // The scene is the file turned Y-up: its y is the file's z (height), its z the file's y (depth).
+    return { x: s.x, y: s.z, z: s.y };
+  };
+  /** The camera to `dir` (a unit vector from the target), standing off from what is framed; glides unless motion is off. */
+  const look = (dir: Vector3) => {
+    const b = boxOf(framed());
+    if (b.isEmpty()) return;
+    const s = b.getBoundingSphere(new Sphere());
+    const radius = Math.max(s.radius, 1e-3);
+    const to = s.center.clone().add(dir.clone().multiplyScalar(standOff(radius)));
+    camera.near = Math.min(radius, r) / 100;
+    camera.updateProjectionMatrix();
+    controls.minDistance = radius * 1.2;
+    if (animate) move = { from: camera.position.clone(), fromTarget: controls.target.clone(), to, toTarget: s.center, start: null };
+    else {
+      move = null;
+      camera.position.copy(to);
+      controls.target.copy(s.center);
+      controls.update();
+    }
+    dirty = true;
+  };
+  const currentDirection = () => camera.position.clone().sub(controls.target).normalize();
+  const shown = () => {
+    for (const m of meshes) m.visible = !hidden.has(m.name) && (focused === null || m.name === focused);
+    renderer.shadowMap.needsUpdate = true;
+    dirty = true;
+    options.onSize?.(size());
+  };
+  const accent = new Color(options.accent ?? "#888888");
+
   // Drawn only when something moved: a still view costs the phone nothing but the frame callback. The turntable goes by the clock, not
   // by frames, so a slow phone turns as far in the same time.
   renderer.setAnimationLoop((time) => {
     try {
       const dt = last === undefined ? 0 : (time - last) / 1000;
       last = time;
+      if (move) {
+        move.start ??= time;
+        const k = Math.min((time - move.start) / MOVE_MS, 1);
+        const e = k * k * (3 - 2 * k);
+        camera.position.lerpVectors(move.from, move.to, e);
+        controls.target.lerpVectors(move.fromTarget, move.toTarget, e);
+        if (k === 1) move = null;
+        dirty = true;
+      }
       if (controls.autoRotate) {
         spun += dt;
         if (spun >= TURNTABLE_SECONDS) rotate(false);
@@ -240,16 +331,48 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
     }
   });
   if (controls.autoRotate) options.onRotating(true);
+  options.onSize?.(size());
+
+  /** Damping would carry the last drag on past a move: settle it first. */
+  const settle = () => {
+    controls.enableDamping = false;
+    controls.update();
+    controls.enableDamping = true;
+  };
 
   return {
-    reset() {
-      // Damping would carry the last drag on past the reset: settle it first.
-      controls.enableDamping = false;
-      controls.update();
-      controls.reset();
-      controls.enableDamping = true;
+    fit() {
+      takeOver();
+      settle();
+      look(DIRECTIONS.iso);
+    },
+    setCamera(dir) {
+      takeOver();
+      settle();
+      look(DIRECTIONS[dir]);
+    },
+    focus(key) {
+      focused = key;
+      takeOver();
+      settle();
+      shown();
+      look(currentDirection());
+    },
+    setHidden(keys) {
+      hidden = keys;
+      shown();
+    },
+    highlight(key) {
+      for (const m of meshes)
+        for (const mat of [m.material].flat() as MeshStandardMaterial[]) {
+          if (!mat.emissive) continue;
+          mat.emissive.copy(key !== null && m.name === key ? accent : BLACK);
+          mat.emissiveIntensity = 0.35;
+        }
       dirty = true;
     },
+    size,
+    meshes: () => meshes,
     setAutoRotate(on) {
       rotate(on && !moved && spun < TURNTABLE_SECONDS);
     },

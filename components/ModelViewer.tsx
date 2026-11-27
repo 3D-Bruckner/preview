@@ -103,7 +103,7 @@ function Viewer({ src, label, facts }: { src: string; label: string; facts: Fact
           <button
             type="button"
             disabled={state !== "ready"}
-            onClick={() => view.current?.reset()}
+            onClick={() => view.current?.fit()}
             className="absolute top-3 right-3 inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line bg-paper/90 px-3.5 text-sm font-medium text-ink shadow-sm backdrop-blur hover:bg-paper disabled:cursor-not-allowed disabled:opacity-50"
           >
             <ResetViewIcon aria-hidden="true" className="size-4 shrink-0" />
