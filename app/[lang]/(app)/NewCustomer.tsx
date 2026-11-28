@@ -1,30 +1,30 @@
 "use client";
-import { useActionState, useId } from "react";
+import { useActionState } from "react";
 import { useCopy } from "@/components/CopyProvider";
 import { AddIcon } from "@/components/icons";
 import { Notice } from "@/components/Notice";
 import { ui } from "@/components/ui";
 import { addCustomer } from "./actions";
 
-// A new customer: a name, a note for the workshop, the language of their page. Saving opens the customer's page, where their link is.
-export function NewCustomer() {
-  const t = useCopy().admin.customers;
-  const headingId = useId();
+// A new customer, in the customer list's dialog: a name, a note for the workshop, the language of their page. Saving opens the customer's
+// page, where their link is.
+export function NewCustomerForm({ onCancel }: { onCancel: () => void }) {
+  const t = useCopy();
   const [result, submit, pending] = useActionState(addCustomer, null);
   return (
-    <section aria-labelledby={headingId} className="mt-8">
-      <h2 id={headingId} className={ui.h2}>
-        {t.add}
-      </h2>
-      <form action={submit} className="mt-3 space-y-3">
-        <CustomerFields />
+    <form action={submit} className="mt-4 space-y-3">
+      <CustomerFields />
+      <div className="flex flex-wrap justify-end gap-3 pt-2">
+        <button type="button" onClick={onCancel} className={ui.secondary}>
+          {t.common.cancel}
+        </button>
         <button type="submit" disabled={pending} className={ui.button}>
           <AddIcon aria-hidden="true" className={ui.iconSize} />
-          {t.create}
+          {t.admin.customers.create}
         </button>
-        <Notice result={result} />
-      </form>
-    </section>
+      </div>
+      <Notice result={result} />
+    </form>
   );
 }
 
