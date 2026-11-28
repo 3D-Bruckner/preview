@@ -33,7 +33,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
           <ul className="mt-2 space-y-1">
             {unseen.map((f) => (
               <li key={f.id}>
-                <Link href={`/models/${f.modelId}`} className="text-accent underline">
+                <Link href={`/models/${f.modelId}`} prefetch={false} className="text-accent underline">
                   {t.home.feedbackItem(f.customerName, f.modelTitle, f.versionNumber)}
                 </Link>
                 <span className="ml-2 text-sm text-muted">

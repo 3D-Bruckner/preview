@@ -21,7 +21,8 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/models/[id
 }
 
 // One model: its details, its versions (newest first) with their print figures and the customer's feedback (marked seen once shown here,
-// still flagged "neu" this once), and the manual upload of the next one.
+// still flagged "neu" this once; the links here are prefetch={false}, so only opening the page marks it), and the manual upload of the next
+// one.
 export default async function ModelAdminPage({ params }: PageProps<"/[lang]/models/[id]">) {
   const { lang, id } = await params;
   await requirePerson(`/models/${id}`);
