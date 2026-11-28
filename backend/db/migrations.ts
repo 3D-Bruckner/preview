@@ -51,4 +51,56 @@ export const MIGRATIONS: Migration[] = [
     name: "version_facts",
     sql: `alter table versions add column facts text;`,
   },
+  {
+    // The slicing service's work per version whose 3MF has no print figures of its own (backend/slicer.ts): pending until it answers
+    // (next_at: when to ask, again after a busy answer), done with its figures (JSON of FactsFigures), or failed with the reason.
+    // Apart from the facts, so reading a 3MF again never loses the slicer's answer.
+    name: "slice_jobs",
+    sql: `
+      create table slice_jobs (
+        version_id text primary key references versions(id) on delete cascade,
+        state text not null check (state in ('pending', 'done', 'failed')),
+        attempts integer not null default 0,
+        next_at text not null,
+        reason text,
+        figures text,
+        updated_at text not null
+      );
+      create index slice_jobs_due on slice_jobs(state, next_at);
+    `,
+  },
+  {
+    // The operator's filaments (backend/filaments.ts): what a customer can pick per part, in the order shown (position); available 0/1.
+    name: "filaments",
+    sql: `
+      create table filaments (
+        id text primary key,
+        name text not null,
+        material text not null,
+        color text not null,
+        available integer not null default 1,
+        position integer not null,
+        created_at text not null,
+        updated_at text not null
+      );
+    `,
+  },
+  {
+    // A customer's feedback on a version (backend/feedback.ts): a comment, colour wishes (JSON: part key and the filament copied in,
+    // so deleting a filament keeps what was wished), when it came and when the operator saw it.
+    name: "feedback",
+    sql: `
+      create table feedback (
+        id text primary key,
+        version_id text not null references versions(id) on delete cascade,
+        customer_id text not null references customers(id) on delete cascade,
+        comment text,
+        wishes text not null,
+        created_at text not null,
+        seen_at text
+      );
+      create index feedback_customer on feedback(customer_id, created_at);
+      create index feedback_version on feedback(version_id, created_at);
+    `,
+  },
 ];

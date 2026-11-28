@@ -9,9 +9,11 @@
 //   3D/Objects/object_1.model) and 4 "Spule" (components 3, 5, 7 of 3D/Objects/object_2.model: 10 mm boxes at x 0, 12 and 24; ids unique
 //   across the files, as Bambu Studio writes them), build items 2 at x 0 and 4 at x 300; Metadata/model_settings.config: Spule's part 3 on
 //   extruder 2, part 5 on the object's extruder 1, part 7 a modifier; Metadata/project_settings.config (JSON): slots #00AE42 PLA and
-//   #FFFFFFFF PETG; Metadata/plate_1.png and plate_2.png (the preview.png below).
+//   #FFFFFFFF PETG; Metadata/plate_1.png and plate_2.png (the preview.png below); Metadata/slice_info.config: plate 1 3600 s, 20.5 g (slot 1
+//   20.5 g), plate 2 1800 s, 9.25 g (slot 2 6 g, slot 1 3.25 g).
 // - showcase.3mf: the README's screenshot, a Bambu-style desk organiser laid out close together: Ablage (a 90 × 60 × 5 tray, black),
-//   Stiftehalter (24 × 24 × 45, green), Kartenhalter (40 × 12 × 28, white) and Clip (16 × 10 × 8, green); slots black, green, white PLA.
+//   Stiftehalter (24 × 24 × 45, green), Kartenhalter (40 × 12 × 28, white) and Clip (16 × 10 × 8, green); slots black, green, white PLA;
+//   sliced: 2 h 41 min, 96.4 g (slot 1 41.2, slot 2 38.9, slot 3 16.3).
 import { readFileSync, writeFileSync } from "node:fs";
 import { crc32, deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
@@ -106,6 +108,18 @@ const modelSettings = `<?xml version="1.0" encoding="UTF-8"?>
   <plate>${meta("plater_id", "1")}${meta("plater_name", "Halter")}${meta("thumbnail_file", "Metadata/plate_1.png")}<model_instance>${meta("object_id", "2")}${meta("instance_id", "0")}</model_instance></plate>
   <plate>${meta("plater_id", "2")}${meta("plater_name", "")}<model_instance>${meta("object_id", "4")}${meta("instance_id", "0")}</model_instance></plate>
 </config>`;
+/** Bambu Studio's slice_info.config: per plate [seconds, grams, [[slot, type, colour, grams], ...]]. */
+const sliceInfo = (plates) => `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+${plates
+  .map(
+    ([seconds, grams, filaments], i) =>
+      `  <plate>${meta("index", String(i + 1))}${meta("prediction", String(seconds))}${meta("weight", String(grams))}${filaments
+        .map(([slot, type, color, g]) => `<filament id="${slot}" type="${type}" color="${color}" used_m="1.00" used_g="${g}"/>`)
+        .join("")}</plate>`,
+  )
+  .join("\n")}
+</config>`;
 const projectSettings = JSON.stringify({ filament_colour: ["#00AE42", "#FFFFFFFF"], filament_type: ["PLA", "PETG"] }, null, 4);
 
 writeFileSync(out("not-a-3mf.3mf"), zipSync({ "readme.txt": strToU8("a zip, but no model in it") }));
@@ -146,6 +160,19 @@ writeFileSync(
     "3D/Objects/object_2.model": strToU8(subModel(meshObject(3, 0, 10) + meshObject(5, 12, 10) + meshObject(7, 24, 10))),
     "Metadata/model_settings.config": strToU8(modelSettings),
     "Metadata/project_settings.config": strToU8(projectSettings),
+    "Metadata/slice_info.config": strToU8(
+      sliceInfo([
+        [3600, 20.5, [[1, "PLA", "#00AE42", 20.5]]],
+        [
+          1800,
+          9.25,
+          [
+            [2, "PETG", "#FFFFFF", 6],
+            [1, "PLA", "#00AE42", 3.25],
+          ],
+        ],
+      ]),
+    ),
     "Metadata/plate_1.png": png,
     "Metadata/plate_2.png": png,
   }),
@@ -177,6 +204,19 @@ writeFileSync(
     "Metadata/model_settings.config": strToU8(showcaseSettings),
     "Metadata/project_settings.config": strToU8(
       JSON.stringify({ filament_colour: ["#1D1E21", "#00AE42", "#F7F7F5"], filament_type: ["PLA", "PLA", "PLA"] }, null, 4),
+    ),
+    "Metadata/slice_info.config": strToU8(
+      sliceInfo([
+        [
+          9660,
+          96.4,
+          [
+            [1, "PLA", "#1D1E21", 41.2],
+            [2, "PLA", "#00AE42", 38.9],
+            [3, "PLA", "#F7F7F5", 16.3],
+          ],
+        ],
+      ]),
     ),
   }),
 );

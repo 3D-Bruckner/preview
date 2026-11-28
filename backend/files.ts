@@ -10,6 +10,7 @@ import { invalid, notFound, ok, type Outcome } from "./outcome";
 import { FactsError, readFacts, type Facts } from "./threemf";
 import { mutation, type Runtime } from "./runtime";
 import type { Version } from "./versions";
+import { figuresOf } from "./figures";
 
 /** A file of an upload, waiting where `readMultipart` put it (next-app-kit's ReceivedFile has more, and fits). */
 export type UploadedFile = { path: string };
@@ -105,9 +106,20 @@ export async function addVersion(
         facts: JSON.stringify(facts),
       });
       drawings.forEach((d, position) => rt.store.insertDrawing({ id: d.id, version_id: id, file: `${d.id}.${d.kind}`, kind: d.kind, position: position + 1 }));
-      return ok({ id, modelId, number, note, createdAt: now, parts: facts.parts.length, drawings: drawings.map((d) => ({ id: d.id, kind: d.kind })) });
+      return ok({
+        id,
+        modelId,
+        number,
+        note,
+        createdAt: now,
+        parts: facts.parts.length,
+        drawings: drawings.map((d) => ({ id: d.id, kind: d.kind })),
+        ...figuresOf(rt, { facts: JSON.stringify(facts) }, undefined),
+      });
     });
     stored = out.ok;
+    // A 3MF without figures of its own is the slicer's to answer (backend/slicer.ts); its worker, where one runs, looks now.
+    if (out.ok && !facts.figures) rt.wakeSlicer();
     return out;
   } finally {
     if (!stored) rmSync(dir, { recursive: true, force: true });

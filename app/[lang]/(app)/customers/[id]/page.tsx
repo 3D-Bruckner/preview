@@ -52,7 +52,7 @@ export default async function CustomerAdminPage({ params }: PageProps<"/[lang]/c
           <ul className="mt-2 divide-y divide-border rounded-md border border-border">
             {models.map(({ model, newest }) => (
               <li key={model.id}>
-                <Link href={`/models/${model.id}`} className="flex min-h-11 flex-col p-3 hover:bg-surface">
+                <Link href={`/models/${model.id}`} prefetch={false} className="flex min-h-11 flex-col p-3 hover:bg-surface">
                   <span className="font-medium">{model.title}</span>
                   <span className="text-sm text-muted">{newest === null ? t.noVersion : t.version(newest)}</span>
                 </Link>

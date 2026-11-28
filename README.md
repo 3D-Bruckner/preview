@@ -1,6 +1,6 @@
 # preview
 
-View-only 3D previews of your models for your customers. A workshop uploads each version of a model (a 3MF, a preview image, optional drawings); every customer gets one secret link to a page with their models, where they turn and zoom each one in 3D, look at each part alone or hide it, see its measurements and filaments, see its versions with their notes, and can't download it. Customers need no account; you revoke or renew a link at any time.
+View-only 3D previews of your models for your customers. A workshop uploads each version of a model (a 3MF, a preview image, optional drawings); every customer gets one secret link to a page with their models, where they turn and zoom each one in 3D, look at each part alone or hide it, see its measurements and filaments, what printing it takes (time, weight, grams per filament), try your filaments on each part and send you a comment and their colour wishes, see its versions with their notes, and can't download it. Customers need no account; you revoke or renew a link at any time.
 
 ![A customer's model page: the 3D view with its tools, the measurements, the parts with their filaments, and the versions](docs/images/customer-model-page.png)
 

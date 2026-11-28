@@ -154,4 +154,58 @@ describe("versions", () => {
     if ("error" in reader) throw new Error(reader.error);
     expect((await withToken("POST", `/versions/${v.value.id}/facts`, reader.token)).status).toBe(403);
   });
+
+  it("POST /versions/{id}/slice asks the slicer again; an instance without one answers 400", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const c = await json<{ id: string }>(await call("POST", "/customers", { name: "Ada" }, me));
+    const m = await json<{ id: string }>(await call("POST", "/models", { customerId: c.id, title: "Rampe" }, me));
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    const v = await addVersion(rt, m.id, { threemf: fixture("ramp.3mf"), preview: fixture("preview.png"), drawings: [] });
+    if (!v.ok) throw new Error(v.message);
+    expect((await call("POST", `/versions/${v.value.id}/slice`, undefined, me)).status).toBe(400);
+    const listed = await json<{ versions: { slicing: string | null; figures: unknown }[] }>(await call("GET", `/models/${m.id}/versions`, undefined, me));
+    expect(listed.versions[0]).toMatchObject({ figures: null, slicing: null, slicing_error: null });
+  });
+});
+
+describe("filaments", () => {
+  it("POST, GET, PATCH and DELETE /filaments keep the operator's list", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const made = await call("POST", "/filaments", { name: "Bambu Grün", material: "PLA", color: "#00AE42" }, me);
+    expect(made.status).toBe(201);
+    const g = await json<{ id: string; color: string; position: number }>(made);
+    expect(g).toMatchObject({ color: "#00ae42", position: 1 });
+    expect((await call("POST", "/filaments", { name: "Rot", material: "PLA", color: "red" }, me)).status).toBe(400);
+    const patched = await call("PATCH", `/filaments/${g.id}`, { available: false }, me);
+    expect(await json(patched)).toMatchObject({ available: false });
+    const all = await json<{ filaments: unknown[] }>(await call("GET", "/filaments", undefined, me));
+    expect(all.filaments).toHaveLength(1);
+    const offered = await json<{ filaments: unknown[] }>(await call("GET", "/filaments?available=true", undefined, me));
+    expect(offered.filaments).toHaveLength(0);
+    expect((await call("DELETE", `/filaments/${g.id}`, undefined, me)).status).toBe(200);
+    expect((await call("DELETE", `/filaments/${g.id}`, undefined, me)).status).toBe(404);
+  });
+});
+
+describe("feedback", () => {
+  it("GET /feedback answers it, filtered; POST /feedback/seen marks it", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const { createCustomer } = await import("./customers");
+    const { createModel } = await import("./models");
+    const { sendFeedback } = await import("./feedback");
+    const c = createCustomer(rt, { name: "Anna" });
+    if (!c.ok) throw new Error(c.message);
+    const m = createModel(rt, { customerId: c.value.id, title: "Spulenhalter" });
+    if (!m.ok) throw new Error(m.message);
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    await addVersion(rt, m.value.id, { threemf: fixture("ramp.3mf"), preview: fixture("preview.png"), drawings: [] });
+    const f = await sendFeedback(rt, c.value.link!, { modelId: m.value.id, versionNumber: 1, comment: "Bitte in Grün.", wishes: [] });
+    if (!f.ok) throw new Error(f.message);
+    const list = await json<{ feedback: { id: string }[] }>(await call("GET", `/feedback?model=${m.value.id}&unseen=true`, undefined, me));
+    expect(list.feedback.map((x) => x.id)).toEqual([f.value.id]);
+    const seen = await call("POST", "/feedback/seen", { ids: [f.value.id] }, me);
+    expect(await json(seen)).toEqual({ marked: 1 });
+    expect((await json<{ feedback: unknown[] }>(await call("GET", "/feedback?unseen=true", undefined, me))).feedback).toEqual([]);
+    expect((await call("POST", "/feedback/seen", { ids: ["nope"] }, me)).status).toBe(404);
+  });
 });

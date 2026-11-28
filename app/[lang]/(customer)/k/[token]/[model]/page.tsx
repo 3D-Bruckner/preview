@@ -8,6 +8,8 @@ import { formatDay } from "@/components/format";
 import { CrumbIcon, OpenIcon } from "@/components/icons";
 import { Card } from "@/components/Card";
 import { ModelReview } from "@/components/ModelReview";
+import { PrintFigures } from "@/components/PrintFigures";
+import { Feedback } from "./Feedback";
 import { ui } from "@/components/ui";
 
 type Props = PageProps<"/[lang]/k/[token]/[model]">;
@@ -19,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // One model of a customer's: the 3D view of the picked version (the newest unless ?v=<number> picks another) beside a side panel with its
-// measurements and parts (ModelReview), the versions and the picked version's drawings; under 1024 px it all stacks. A version picker by the title offers the same versions. Nothing
+// measurements, print figures and parts with their colour pickers (ModelReview, PrintFigures), the versions and the picked version's drawings, and the Rückmeldung card (Feedback); under 1024 px it all stacks. A version picker by the title offers the same versions. Nothing
 // here is a download: no download attribute, and only a PDF drawing is a link, which the browser opens in its own viewer. A model that is
 // not the token's customer's is the same 404 as any missing page.
 export default async function CustomerModelPage({ params, searchParams }: Props) {
@@ -78,7 +80,14 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
       </div>
 
       {/* Keyed by the file: another version starts the review over (whole model, nothing hidden). */}
-      <ModelReview key={shown.threemfUrl} src={shown.threemfUrl} label={t.viewer(view.model.title)} facts={shown.facts}>
+      <ModelReview
+        key={shown.threemfUrl}
+        src={shown.threemfUrl}
+        label={t.viewer(view.model.title)}
+        facts={shown.facts}
+        print={<PrintFigures lang={lang} figures={shown.figures} pending={shown.printPending} />}
+        filaments={view.filaments}
+      >
         <Card id="versions" title={t.versions} aside={view.versions.length}>
           <ol className="divide-y divide-border">
             {view.versions.map((v) => {
@@ -125,6 +134,17 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
             </ul>
           </Card>
         )}
+        <Feedback
+          token={token}
+          modelId={view.model.id}
+          versionNumber={shown.number}
+          sent={shown.feedback.map((f) => ({
+            createdAt: f.createdAt,
+            day: formatDay(lang, f.createdAt),
+            comment: f.comment,
+            wishes: f.wishes.map((w) => ({ part: w.part, partName: w.partName, name: w.filament.name, material: w.filament.material })),
+          }))}
+        />
       </ModelReview>
     </>
   );

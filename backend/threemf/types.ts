@@ -2,7 +2,7 @@
 // them through @/backend/client.
 
 /** The reader's version: facts read by an older one are read again at start (fillMissingFacts). */
-export const READER = 1;
+export const READER = 2;
 
 /** Millimetres per unit of a 3MF's `<model unit>`. */
 export const UNIT_MM: Record<string, number> = { micron: 0.001, millimeter: 1, centimeter: 10, inch: 25.4, foot: 304.8, meter: 1000 };
@@ -15,8 +15,17 @@ export type FactsSlot = { slot: number; type: string | null; color: string | nul
  * object's `<component>`s, null for an object that is a mesh itself; `slot` is null when the file doesn't say or names a slot it hasn't. */
 export type FactsPart = { key: string; name: string | null; object: string; components: number[] | null; slot: number | null };
 
-/** `items`: the `objectid` of each `<build>` item, in order (an object placed twice is two items and one part); `unit`: mm per unit. */
-export type Facts = { reader: typeof READER; unit: number; items: string[]; parts: FactsPart[]; slots: FactsSlot[] };
+/** One filament's share of the print: its slot, material and colour as the slicer reports them, and its grams. */
+export type FactsFilament = { slot: number; type: string | null; color: string | null; grams: number };
+
+/** What printing the whole model takes, from Bambu Studio's slice (summed over the plates it sliced): seconds, grams, per filament. */
+export type FactsFigures = { seconds: number; grams: number; filaments: FactsFilament[] };
+
+/**
+ * `items`: the `objectid` of each `<build>` item, in order (an object placed twice is two items and one part); `unit`: mm per unit;
+ * `figures`: null when the file was not sliced.
+ */
+export type Facts = { reader: typeof READER; unit: number; items: string[]; parts: FactsPart[]; slots: FactsSlot[]; figures: FactsFigures | null };
 
 /** The facts of a version whose 3MF hasn't been read yet: no parts, shown as a whole. */
-export const emptyFacts = (): Facts => ({ reader: READER, unit: 1, items: [], parts: [], slots: [] });
+export const emptyFacts = (): Facts => ({ reader: READER, unit: 1, items: [], parts: [], slots: [], figures: null });

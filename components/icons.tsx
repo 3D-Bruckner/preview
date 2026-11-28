@@ -16,6 +16,7 @@ export {
   KeyRound as TokenIcon,
   LogOut as SignOutIcon,
   Moon as DarkIcon,
+  Palette as FilamentsIcon,
   Plus as AddIcon,
   Settings as SettingsIcon,
   Sun as LightIcon,

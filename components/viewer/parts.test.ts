@@ -17,7 +17,8 @@ const composite = (n: number) => {
 
 /** plates.3mf's facts (backend/threemf/facts.test.ts). */
 const PLATES: Facts = {
-  reader: 1,
+  reader: 2,
+  figures: null,
   unit: 1,
   items: ["2", "4"],
   slots: [
@@ -62,7 +63,8 @@ describe("tagParts", () => {
     painted.geometry.setAttribute("color", new BufferAttribute(new Float32Array(painted.geometry.attributes.position!.count * 3), 3));
     (painted.material as MeshPhongMaterial).vertexColors = true;
     const facts: Facts = {
-      reader: 1,
+      reader: 2,
+      figures: null,
       unit: 1,
       items: ["1", "2"],
       slots: [{ slot: 1, type: null, color: "#d62828" }],
