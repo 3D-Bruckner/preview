@@ -18,6 +18,7 @@ export {
   type CustomerView,
 } from "./customerview";
 export { fillMissingFacts } from "./facts";
+export { resliceVersion } from "./figures";
 export { startSliceWorker } from "./slicer";
 export { addVersion, UPLOAD_TYPES, type UploadedFile } from "./files";
 export { healthResponse } from "./health";

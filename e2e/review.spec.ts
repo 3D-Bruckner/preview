@@ -99,6 +99,8 @@ test("another version starts the review over: the whole model, nothing hidden", 
 
 test("pointing at a part's row, or tabbing into it, lights the part up in the view; leaving puts it back", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
+  // Side by side, so screenshotting the view doesn't scroll the row away from under the pointer.
+  await page.setViewportSize({ width: 1440, height: 900 });
   await open(page, "plates.3mf", "Spulenhalter");
   const view = page.getByRole("img", { name: "3D-Ansicht von Spulenhalter" });
   // Shown alone, the part fills the view, so its colour weighs in the picture.

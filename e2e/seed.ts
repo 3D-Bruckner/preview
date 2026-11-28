@@ -39,7 +39,8 @@ export const model = (c: Customer, title: string, description?: string): Model =
 export async function version(m: Model, input: { threemf?: string; note?: string; drawings?: string[] } = {}): Promise<Version> {
   return value(
     await addVersion(runtime(), m.id, {
-      threemf: FIXTURE(input.threemf ?? "ramp.3mf"),
+      // A fixture by name, or a file a test made (an absolute path).
+      threemf: input.threemf?.startsWith("/") ? { path: input.threemf } : FIXTURE(input.threemf ?? "ramp.3mf"),
       preview: FIXTURE("preview.png"),
       drawings: (input.drawings ?? []).map((d) => ({ path: d })),
       ...(input.note ? { note: input.note } : {}),

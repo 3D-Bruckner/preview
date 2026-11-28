@@ -6,7 +6,7 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createApiToken, revokeApiToken } from "next-app-kit/tokens";
-import { createCustomer, createModel, renewLink, revokeLink, updateCustomer, updateModel, type Language, type Outcome } from "@/backend";
+import { createCustomer, createModel, renewLink, resliceVersion, revokeLink, updateCustomer, updateModel, type Language, type Outcome } from "@/backend";
 import { actionPerson } from "@/app/_lib/signin";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor, LANG_HEADER, type Copy } from "@/components/copy";
@@ -104,4 +104,13 @@ export async function saveModel(_prev: Result | null, fd: FormData): Promise<Res
   if (!out.ok) return refused(t, out, t.admin.refused.title);
   refresh();
   return { ok: true, message: t.admin.customer.saved };
+}
+
+export async function reslice(_prev: Result | null, fd: FormData): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = resliceVersion(runtime(), field(fd, "versionId"));
+  if (!out.ok) return refused(t, out, t.admin.refused.other);
+  refresh();
+  return { ok: true, message: t.admin.model.figures.resliced };
 }

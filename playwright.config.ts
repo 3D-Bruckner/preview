@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const PORT = 3310;
+const SLICER_PORT = 3319;
 // Made once, in the main process, with the brand's logo in it; the workers that load this file again inherit it.
 if (!process.env.E2E_DATA_DIR) {
   process.env.E2E_DATA_DIR = mkdtempSync(join(tmpdir(), "preview-e2e-"));
@@ -27,25 +28,35 @@ export default defineConfig({
   // A test that opens several pages waits for each to compile on its first request.
   timeout: 60_000,
   use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
-  webServer: {
-    command: `next dev -p ${PORT}`,
-    url: `http://localhost:${PORT}/health`,
-    reuseExistingServer: false,
-    timeout: 120_000,
-    env: {
-      DATA_DIR: process.env.E2E_DATA_DIR,
-      PUBLIC_URL: `http://localhost:${PORT}`,
-      PORT: String(PORT),
-      PREVIEW_E2E: "1",
-      PREVIEW_SECRET: "e2e-secret-".padEnd(48, "x"),
-      PREVIEW_ALLOWED_EMAILS: "owner@example.com",
-      // Sign-in by email is on, so the instance has a way in; the tests never send a mail.
-      PREVIEW_SMTP_URL: "smtp://127.0.0.1:2525",
-      PREVIEW_SMTP_FROM: "preview <noreply@example.com>",
-      // An instance's brand, so the tests see that the pages show the settings' brand and name nobody else.
-      PREVIEW_BRAND_NAME: "Test Studio",
-      PREVIEW_LOGO: "brand/logo.svg",
-      PREVIEW_IMPRINT_URL: "https://studio.example.com/imprint",
+  webServer: [
+    {
+      // The slicing service's stand-in (e2e/fake-slicer.mjs), for the print figures of files Bambu Studio has not sliced.
+      command: `node e2e/fake-slicer.mjs`,
+      url: `http://localhost:${SLICER_PORT}/health`,
+      reuseExistingServer: false,
+      env: { FAKE_SLICER_PORT: String(SLICER_PORT) },
     },
-  },
+    {
+      command: `next dev -p ${PORT}`,
+      url: `http://localhost:${PORT}/health`,
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        DATA_DIR: process.env.E2E_DATA_DIR,
+        PUBLIC_URL: `http://localhost:${PORT}`,
+        PORT: String(PORT),
+        PREVIEW_E2E: "1",
+        PREVIEW_SECRET: "e2e-secret-".padEnd(48, "x"),
+        PREVIEW_ALLOWED_EMAILS: "owner@example.com",
+        // Sign-in by email is on, so the instance has a way in; the tests never send a mail.
+        PREVIEW_SMTP_URL: "smtp://127.0.0.1:2525",
+        PREVIEW_SMTP_FROM: "preview <noreply@example.com>",
+        // An instance's brand, so the tests see that the pages show the settings' brand and name nobody else.
+        PREVIEW_BRAND_NAME: "Test Studio",
+        PREVIEW_LOGO: "brand/logo.svg",
+        PREVIEW_IMPRINT_URL: "https://studio.example.com/imprint",
+        PREVIEW_SLICER_URL: `http://localhost:${SLICER_PORT}`,
+      },
+    },
+  ],
 });

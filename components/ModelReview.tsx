@@ -10,7 +10,20 @@ import type { Size } from "@/components/viewer/scene";
  * A model page's review: the 3D view beside the side panel's Maße and Teile cards (then `children`, the page's own cards). The one place
  * that holds what the visitor picked: the focused part, the hidden ones and the one under the pointer, and the shown size.
  */
-export function ModelReview({ src, label, facts, children }: { src: string; label: string; facts: Facts; children: ReactNode }) {
+export function ModelReview({
+  src,
+  label,
+  facts,
+  print,
+  children,
+}: {
+  src: string;
+  label: string;
+  facts: Facts;
+  /** The Druck card (PrintFigures), between Maße and Teile. */
+  print?: ReactNode;
+  children: ReactNode;
+}) {
   const [focused, setFocused] = useState<string | null>(null);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [hovered, setHovered] = useState<string | null>(null);
@@ -21,6 +34,7 @@ export function ModelReview({ src, label, facts, children }: { src: string; labe
       <ModelViewer key={src} src={src} label={label} facts={facts} focused={focused} hidden={hidden} hovered={hovered} size={size} onSize={setSize} />
       <aside className="grid min-w-0 gap-4">
         <Dimensions size={size} scope={focused ? (labels.get(focused) ?? null) : null} />
+        {print}
         {facts.parts.length > 0 && (
           <PartsList
             facts={facts}

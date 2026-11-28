@@ -8,6 +8,7 @@ import { formatDay } from "@/components/format";
 import { CrumbIcon, OpenIcon } from "@/components/icons";
 import { Card } from "@/components/Card";
 import { ModelReview } from "@/components/ModelReview";
+import { PrintFigures } from "@/components/PrintFigures";
 import { ui } from "@/components/ui";
 
 type Props = PageProps<"/[lang]/k/[token]/[model]">;
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 // One model of a customer's: the 3D view of the picked version (the newest unless ?v=<number> picks another) beside a side panel with its
-// measurements and parts (ModelReview), the versions and the picked version's drawings; under 1024 px it all stacks. A version picker by the title offers the same versions. Nothing
+// measurements, print figures and parts (ModelReview, PrintFigures), the versions and the picked version's drawings; under 1024 px it all stacks. A version picker by the title offers the same versions. Nothing
 // here is a download: no download attribute, and only a PDF drawing is a link, which the browser opens in its own viewer. A model that is
 // not the token's customer's is the same 404 as any missing page.
 export default async function CustomerModelPage({ params, searchParams }: Props) {
@@ -78,7 +79,13 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
       </div>
 
       {/* Keyed by the file: another version starts the review over (whole model, nothing hidden). */}
-      <ModelReview key={shown.threemfUrl} src={shown.threemfUrl} label={t.viewer(view.model.title)} facts={shown.facts}>
+      <ModelReview
+        key={shown.threemfUrl}
+        src={shown.threemfUrl}
+        label={t.viewer(view.model.title)}
+        facts={shown.facts}
+        print={<PrintFigures lang={lang} figures={shown.figures} pending={shown.printPending} />}
+      >
         <Card id="versions" title={t.versions} aside={view.versions.length}>
           <ol className="divide-y divide-border">
             {view.versions.map((v) => {

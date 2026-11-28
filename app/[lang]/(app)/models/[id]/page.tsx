@@ -6,9 +6,10 @@ import { getCustomer, getModel, listVersions } from "@/backend";
 import { requirePerson } from "@/app/_lib/signin";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor } from "@/components/copy";
-import { formatWhen } from "@/components/format";
+import { formatGrams, formatWhen, hoursMinutes } from "@/components/format";
 import { ui } from "@/components/ui";
 import { ModelDetails } from "./ModelDetails";
+import { Reslice } from "./Reslice";
 import { UploadVersion } from "./UploadVersion";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/models/[id]">): Promise<Metadata> {
@@ -31,6 +32,7 @@ export default async function ModelAdminPage({ params }: PageProps<"/[lang]/mode
   const versions = listVersions(rt, id);
   if (!customer.ok || !versions.ok) notFound();
   const t = copyFor(lang).admin.model;
+  const f = { ...t.figures, duration: ({ h, m }: { h: number; m: number }) => copyFor(lang).customer.print.duration(h, m) };
   const link = customer.value.link ? `${rt.config.publicUrl}/k/${customer.value.link}/${m.id}` : null;
   return (
     <>
@@ -65,6 +67,18 @@ export default async function ModelAdminPage({ params }: PageProps<"/[lang]/mode
                   {v.drawings.length > 0 && ` · ${t.drawings(v.drawings.length)}`}
                 </span>
                 {v.note && <span className="mt-1 block">{v.note}</span>}
+                {v.figures && (
+                  <span className="mt-1 block text-sm tabular">
+                    {f.line(f.duration(hoursMinutes(v.figures.seconds)), formatGrams(v.figures.grams, lang), v.figures.source === "file" ? f.file : f.slicer)}
+                  </span>
+                )}
+                {v.slicing === "pending" && <span className="mt-1 block text-sm text-muted">{f.pending}</span>}
+                {v.slicing === "failed" && (
+                  <>
+                    <span className="mt-1 block text-sm text-danger">{f.failed(f.reasons[v.reason ?? ""] ?? f.other(v.reason ?? ""))}</span>
+                    <Reslice versionId={v.id} />
+                  </>
+                )}
               </li>
             ))}
           </ul>

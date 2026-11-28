@@ -4,6 +4,7 @@
 import { customerByToken, type Customer, type Language } from "./customers";
 import { factsOf } from "./facts";
 import { versionFile } from "./files";
+import { figuresOf, type Figures } from "./figures";
 import { emptyFacts, type Facts } from "./threemf";
 import type { Runtime } from "./runtime";
 
@@ -27,6 +28,9 @@ export type CustomerVersionView = {
   previewUrl: string;
   /** Its parts and filament slots; empty (shown as a whole, no parts list) until read. */
   facts: Facts;
+  /** What printing it takes, for the whole model; `printPending`: the slicer will answer (a failure shows nothing to the customer). */
+  figures: Figures | null;
+  printPending: boolean;
   drawings: { url: string; kind: "png" | "svg" | "pdf" }[];
 };
 
@@ -44,8 +48,10 @@ function modelOf(rt: Runtime, customer: Customer, modelId: string) {
 function versionsOf(rt: Runtime, token: string, modelId: string): CustomerVersionView[] {
   const rows = rt.store.versionsOfModel(modelId);
   const drawings = rt.store.drawingsOfVersions(rows.map((v) => v.id));
+  const jobs = new Map(rt.store.sliceJobsOf(rows.map((v) => v.id)).map((j) => [j.version_id, j]));
   return rows.map((v) => {
     const base = filesUrl(token, v.id);
+    const print = figuresOf(rt, v, jobs.get(v.id));
     return {
       number: v.number,
       note: v.note,
@@ -53,6 +59,8 @@ function versionsOf(rt: Runtime, token: string, modelId: string): CustomerVersio
       threemfUrl: `${base}/model.3mf`,
       previewUrl: `${base}/preview.png`,
       facts: factsOf(v) ?? emptyFacts(),
+      figures: print.figures,
+      printPending: print.slicing === "pending",
       drawings: drawings.filter((d) => d.version_id === v.id).map((d) => ({ url: `${base}/${d.id}.${d.kind}`, kind: d.kind })),
     };
   });
