@@ -114,6 +114,7 @@ export async function addVersion(
         createdAt: now,
         parts: facts.parts.length,
         drawings: drawings.map((d) => ({ id: d.id, kind: d.kind })),
+        seenAt: null,
         ...figuresOf(rt, { facts: JSON.stringify(facts) }, undefined),
       });
     });

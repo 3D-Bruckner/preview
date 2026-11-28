@@ -103,4 +103,16 @@ export const MIGRATIONS: Migration[] = [
       create index feedback_version on feedback(version_id, created_at);
     `,
   },
+  {
+    // When a customer last looked (backend/views.ts): their link opened (customers.seen_at) and each version viewed (version_views). Only
+    // the last time is kept; opens by the signed-in operator are not recorded.
+    name: "views",
+    sql: `
+      alter table customers add column seen_at text;
+      create table version_views (
+        version_id text primary key references versions(id) on delete cascade,
+        seen_at text not null
+      );
+    `,
+  },
 ];

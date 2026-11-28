@@ -49,6 +49,7 @@ export const customerSchema = z.object({
   link_url: z.string().nullable().describe("The customer's secret link; null once revoked."),
   admin_url: z.string().describe("The customer's page in the web app, for the person who runs preview."),
   created_at: z.string(),
+  last_seen_at: z.string().nullable().describe("When the customer last opened their link; null: never. Opens by the signed-in operator don't count."),
 });
 
 export const modelInputSchema = z.object({
@@ -91,6 +92,7 @@ export const versionSchema = z.object({
     .nullable()
     .describe("pending: the slicing service will answer for a 3MF without figures of its own; failed: it couldn't (slicing_error); null otherwise."),
   slicing_error: z.string().nullable().describe("Why the slicing failed (the service's reason, such as off_plate or too_large)."),
+  seen_at: z.string().nullable().describe("When the customer last viewed this version; null: never. Views by the signed-in operator don't count."),
 });
 
 export const sliceSchema = z.object({ slicing: z.literal("pending") });
@@ -105,6 +107,7 @@ export const customerJson = (base: string, c: Customer): z.infer<typeof customer
   link_url: c.link ? `${base}/k/${c.link}` : null,
   admin_url: `${base}/customers/${c.id}`,
   created_at: c.createdAt,
+  last_seen_at: c.lastSeenAt,
 });
 
 /** `customer` is the model's customer: its link decides the model's. */
@@ -130,6 +133,7 @@ export const versionJson = (v: Version): z.infer<typeof versionSchema> => ({
   figures: v.figures,
   slicing: v.slicing,
   slicing_error: v.reason,
+  seen_at: v.seenAt,
 });
 
 /** The model as answered: its customer's link decides its own. */

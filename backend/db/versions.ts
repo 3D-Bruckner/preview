@@ -17,6 +17,17 @@ export function versionQueries({ q, all, run }: Exec) {
       all(q.selectFrom("drawings").selectAll().where("version_id", "=", versionId).where("id", "=", id))[0],
     /** A model's versions, newest (highest number) first. */
     versionsOfModel: (modelId: string): VersionRow[] => all(q.selectFrom("versions").selectAll().where("model_id", "=", modelId).orderBy("number", "desc")),
+    /** Records that the customer viewed this version now (only the last time is kept). */
+    setVersionSeen: (versionId: string, at: string) =>
+      void run(
+        q
+          .insertInto("version_views")
+          .values({ version_id: versionId, seen_at: at })
+          .onConflict((oc) => oc.column("version_id").doUpdateSet({ seen_at: at })),
+      ),
+    /** When the customer last viewed each of these versions (those never viewed are missing). */
+    versionsSeen: (versionIds: string[]): { version_id: string; seen_at: string }[] =>
+      versionIds.length === 0 ? [] : all(q.selectFrom("version_views").selectAll().where("version_id", "in", versionIds)),
     /** The drawings of these versions, in their order. */
     drawingsOfVersions: (versionIds: string[]): DrawingRow[] =>
       versionIds.length === 0 ? [] : all(q.selectFrom("drawings").selectAll().where("version_id", "in", versionIds).orderBy("position")),

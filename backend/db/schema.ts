@@ -9,6 +9,8 @@ export interface CustomersTable {
   /** The token in the customer's link; null once revoked. */
   link_token: string | null;
   created_at: string;
+  /** When the customer last opened their link (not the operator); null: never. */
+  seen_at: string | null;
 }
 
 export interface ModelsTable {
@@ -76,6 +78,12 @@ export interface FeedbackTable {
   seen_at: string | null;
 }
 
+export interface VersionViewsTable {
+  version_id: string;
+  /** When the customer last viewed this version. */
+  seen_at: string;
+}
+
 export type DB = {
   customers: CustomersTable;
   models: ModelsTable;
@@ -84,6 +92,7 @@ export type DB = {
   slice_jobs: SliceJobsTable;
   filaments: FilamentsTable;
   feedback: FeedbackTable;
+  version_views: VersionViewsTable;
 };
 
 export type CustomerRow = CustomersTable;
