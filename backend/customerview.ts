@@ -4,7 +4,9 @@
 import { customerByToken, type Customer, type Language } from "./customers";
 import { factsOf } from "./facts";
 import { versionFile } from "./files";
+import { feedbackOfVersions, type Wish } from "./feedback";
 import { figuresOf, type Figures } from "./figures";
+import { filamentName, listFilaments, type Filament } from "./filaments";
 import { emptyFacts, type Facts } from "./threemf";
 import type { Runtime } from "./runtime";
 
@@ -20,6 +22,9 @@ export type CustomerView = {
   }[];
 };
 
+/** Print figures whose filaments carry the operator's name for them (null when no filament of the list matches). */
+export type NamedFigures = Omit<Figures, "filaments"> & { filaments: (Figures["filaments"][number] & { name: string | null })[] };
+
 export type CustomerVersionView = {
   number: number;
   note: string | null;
@@ -28,13 +33,26 @@ export type CustomerVersionView = {
   previewUrl: string;
   /** Its parts and filament slots; empty (shown as a whole, no parts list) until read. */
   facts: Facts;
-  /** What printing it takes, for the whole model; `printPending`: the slicer will answer (a failure shows nothing to the customer). */
-  figures: Figures | null;
+  /**
+   * What printing it takes, for the whole model, each filament named from the operator's list when its colour and material match one;
+   * `printPending`: the slicer will answer (a failure shows nothing to the customer).
+   */
+  figures: NamedFigures | null;
   printPending: boolean;
   drawings: { url: string; kind: "png" | "svg" | "pdf" }[];
+  /** What the customer sent back on this version, newest first. */
+  feedback: { createdAt: string; comment: string | null; wishes: Wish[] }[];
 };
 
-export type CustomerModelView = { model: { id: string; title: string; description: string | null }; versions: CustomerVersionView[] };
+/** A filament the customer can pick for a part. */
+export type CustomerFilament = Pick<Filament, "id" | "name" | "material" | "color">;
+
+export type CustomerModelView = {
+  model: { id: string; title: string; description: string | null };
+  versions: CustomerVersionView[];
+  /** The operator's filaments on offer, in picker order; none: no pickers, only the comment. */
+  filaments: CustomerFilament[];
+};
 
 /** Where a version's files are served: app/k/[token]/files/[version]/[file], outside the proxy. */
 const filesUrl = (token: string, versionId: string) => `/k/${token}/files/${versionId}`;
@@ -49,6 +67,11 @@ function versionsOf(rt: Runtime, token: string, modelId: string): CustomerVersio
   const rows = rt.store.versionsOfModel(modelId);
   const drawings = rt.store.drawingsOfVersions(rows.map((v) => v.id));
   const jobs = new Map(rt.store.sliceJobsOf(rows.map((v) => v.id)).map((j) => [j.version_id, j]));
+  const feedback = feedbackOfVersions(
+    rt,
+    rows.map((v) => v.id),
+  );
+  const palette = listFilaments(rt);
   return rows.map((v) => {
     const base = filesUrl(token, v.id);
     const print = figuresOf(rt, v, jobs.get(v.id));
@@ -59,9 +82,10 @@ function versionsOf(rt: Runtime, token: string, modelId: string): CustomerVersio
       threemfUrl: `${base}/model.3mf`,
       previewUrl: `${base}/preview.png`,
       facts: factsOf(v) ?? emptyFacts(),
-      figures: print.figures,
+      figures: print.figures && { ...print.figures, filaments: print.figures.filaments.map((f) => ({ ...f, name: filamentName(palette, f) })) },
       printPending: print.slicing === "pending",
       drawings: drawings.filter((d) => d.version_id === v.id).map((d) => ({ url: `${base}/${d.id}.${d.kind}`, kind: d.kind })),
+      feedback: feedback.filter((f) => f.versionId === v.id).map((f) => ({ createdAt: f.createdAt, comment: f.comment, wishes: f.wishes })),
     };
   });
 }
@@ -98,7 +122,8 @@ export function customerModel(rt: Runtime, token: string, modelId: string): Cust
   if (!model) return null;
   const versions = versionsOf(rt, token, model.id);
   if (versions.length === 0) return null;
-  return { model: { id: model.id, title: model.title, description: model.description }, versions };
+  const filaments = listFilaments(rt, { available: true }).map((f) => ({ id: f.id, name: f.name, material: f.material, color: f.color }));
+  return { model: { id: model.id, title: model.title, description: model.description }, versions, filaments };
 }
 
 /**

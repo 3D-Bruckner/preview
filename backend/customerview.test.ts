@@ -141,3 +141,24 @@ describe("customerLanguage", () => {
     expect(customerLanguage(rt, "nope")).toBeNull();
   });
 });
+
+describe("a model page's filaments and feedback", () => {
+  it("offers the available filaments, names the print figures' filaments from the whole list, and shows each version its own feedback", async () => {
+    const { createFilament } = await import("./filaments");
+    const { sendFeedback } = await import("./feedback");
+    value(createFilament(rt, { name: "Bambu Grün", material: "PLA", color: "#00AE42" }));
+    value(createFilament(rt, { name: "Weiß", material: "PETG", color: "#ffffff", available: false }));
+    const plates = value(createModel(rt, { customerId: a.id, title: "Spulenhalter" }));
+    await addVersion(rt, plates.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] });
+    await addVersion(rt, plates.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] });
+    value(await sendFeedback(rt, a.link!, { modelId: plates.id, versionNumber: 1, comment: "Etwas dicker, bitte.", wishes: [] }));
+    const view = customerModel(rt, a.link!, plates.id)!;
+    expect(view.filaments.map((f) => f.name)).toEqual(["Bambu Grün"]);
+    const [second, first] = view.versions;
+    expect(second!.feedback).toEqual([]);
+    expect(first!.feedback).toEqual([{ createdAt: expect.any(String), comment: "Etwas dicker, bitte.", wishes: [] }]);
+    expect(first!.figures!.filaments.map((f) => f.name)).toEqual(["Bambu Grün", "Weiß"]);
+    // Another customer's page shows none of it.
+    expect(customerModel(rt, b.link!, plates.id)).toBeNull();
+  });
+});

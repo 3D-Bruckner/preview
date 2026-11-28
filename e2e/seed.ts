@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { signInSettings } from "../backend/accounts";
 import { loadConfig } from "../backend/config";
 import { createCustomer, type Customer, type Language } from "../backend/customers";
+import { sendFeedback } from "../backend/feedback";
+import { createFilament, deleteFilament, listFilaments, type Filament } from "../backend/filaments";
 import { addVersion } from "../backend/files";
 import { log } from "../backend/log";
 import { createModel, type Model } from "../backend/models";
@@ -46,4 +48,18 @@ export async function version(m: Model, input: { threemf?: string; note?: string
       ...(input.note ? { note: input.note } : {}),
     }),
   );
+}
+
+/** A filament the customer can pick (or not, `available: false`). */
+export const filament = (name: string, material: string, color: string, available = true): Filament =>
+  value(createFilament(runtime(), { name, material, color, available }));
+
+/** Leaves the filament list empty, as every test of it finds it. */
+export function clearFilaments(): void {
+  for (const f of listFilaments(runtime())) value(deleteFilament(runtime(), f.id));
+}
+
+/** A customer's comment on a version, sent as their page sends it. */
+export async function feedback(c: Customer, m: Model, versionNumber: number, comment: string): Promise<void> {
+  value(await sendFeedback(runtime(), c.link!, { modelId: m.id, versionNumber, comment, wishes: [] }));
 }

@@ -2,3 +2,4 @@
 // the frontend import @/backend/client and nothing else under @/backend/), never from @/backend, whose runtime would drag the server in.
 export { emptyFacts, UNIT_MM, type Facts, type FactsFigures, type FactsFilament, type FactsPart, type FactsSlot } from "./threemf/types";
 export type { Figures } from "./figures";
+export type { CustomerFilament, NamedFigures } from "./customerview";
