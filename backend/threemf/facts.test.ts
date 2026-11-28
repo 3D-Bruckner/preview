@@ -53,6 +53,17 @@ describe("readFacts", () => {
     });
   });
 
+  it("reads the README's show project: four mesh objects, each on its own extruder", () => {
+    const f = readFacts(bytes("showcase.3mf"));
+    expect(f.parts.map((p) => [p.key, p.name, p.slot])).toEqual([
+      ["1:0", "Ablage", 1],
+      ["2:0", "Stiftehalter", 2],
+      ["3:0", "Kartenhalter", 3],
+      ["4:0", "Clip", 2],
+    ]);
+    expect(f.slots.map((s) => s.color)).toEqual(["#1d1e21", "#00ae42", "#f7f7f5"]);
+  });
+
   it("lists an object placed twice once", () => {
     const f = readFacts(
       platesWith((e) => {

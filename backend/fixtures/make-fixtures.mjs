@@ -10,6 +10,8 @@
 //   across the files, as Bambu Studio writes them), build items 2 at x 0 and 4 at x 300; Metadata/model_settings.config: Spule's part 3 on
 //   extruder 2, part 5 on the object's extruder 1, part 7 a modifier; Metadata/project_settings.config (JSON): slots #00AE42 PLA and
 //   #FFFFFFFF PETG; Metadata/plate_1.png and plate_2.png (the preview.png below).
+// - showcase.3mf: the README's screenshot, a Bambu-style desk organiser laid out close together: Ablage (a 90 × 60 × 5 tray, black),
+//   Stiftehalter (24 × 24 × 45, green), Kartenhalter (40 × 12 × 28, white) and Clip (16 × 10 × 8, green); slots black, green, white PLA.
 import { readFileSync, writeFileSync } from "node:fs";
 import { crc32, deflateSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
@@ -24,6 +26,11 @@ const RELS = `<?xml version="1.0" encoding="UTF-8"?>
 
 /** A box of the given size at x0 as a mesh: 8 vertices, 12 triangles. */
 function box(x0, size) {
+  return cuboid(x0, 0, 0, size, size, size);
+}
+
+/** A box of w × d × h mm with its corner at (x0, y0, z0). */
+function cuboid(x0, y0, z0, w, d, h) {
   const v = [
     [0, 0, 0],
     [1, 0, 0],
@@ -33,7 +40,7 @@ function box(x0, size) {
     [1, 0, 1],
     [1, 1, 1],
     [0, 1, 1],
-  ].map(([x, y, z]) => `<vertex x="${x0 + x * size}" y="${y * size}" z="${z * size}"/>`);
+  ].map(([x, y, z]) => `<vertex x="${x0 + x * w}" y="${y0 + y * d}" z="${z0 + z * h}"/>`);
   const t = [
     [0, 2, 1],
     [0, 3, 2],
@@ -141,5 +148,35 @@ writeFileSync(
     "Metadata/project_settings.config": strToU8(projectSettings),
     "Metadata/plate_1.png": png,
     "Metadata/plate_2.png": png,
+  }),
+);
+
+const showcaseObjects = [
+  [1, "Ablage", 1, [0, 0, 0, 90, 60, 5]],
+  [2, "Stiftehalter", 2, [98, 0, 0, 24, 24, 45]],
+  [3, "Kartenhalter", 3, [98, 32, 0, 40, 12, 28]],
+  [4, "Clip", 2, [128, 0, 0, 16, 10, 8]],
+];
+const showcaseRoot = `<?xml version="1.0" encoding="UTF-8"?>
+<model unit="millimeter" xml:lang="en-US" xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"><resources>${showcaseObjects
+  .map(([id, , , dims]) => {
+    const m = cuboid(...dims);
+    return `<object id="${id}" type="model"><mesh><vertices>${m.vertices}</vertices><triangles>${m.triangles}</triangles></mesh></object>`;
+  })
+  .join("")}</resources><build>${showcaseObjects.map(([id]) => `<item objectid="${id}" printable="1"/>`).join("")}</build></model>`;
+const showcaseSettings = `<?xml version="1.0" encoding="UTF-8"?>
+<config>
+${showcaseObjects.map(([id, name, extruder]) => `  <object id="${id}">${meta("name", name)}${meta("extruder", String(extruder))}</object>`).join("\n")}
+</config>`;
+writeFileSync(
+  out("showcase.3mf"),
+  zipSync({
+    "[Content_Types].xml": strToU8(CONTENT_TYPES),
+    "_rels/.rels": strToU8(RELS),
+    "3D/3dmodel.model": strToU8(showcaseRoot),
+    "Metadata/model_settings.config": strToU8(showcaseSettings),
+    "Metadata/project_settings.config": strToU8(
+      JSON.stringify({ filament_colour: ["#1D1E21", "#00AE42", "#F7F7F5"], filament_type: ["PLA", "PLA", "PLA"] }, null, 4),
+    ),
   }),
 );

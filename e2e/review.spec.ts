@@ -3,6 +3,7 @@
 // split into two parts by filament (10 mm boxes; a third box is a modifier, neither listed nor drawn).
 import { expect, test, type Page } from "@playwright/test";
 import { PHONE } from "./app";
+import { apart, look, MOVING } from "./look";
 import { customer, model, version } from "./seed";
 
 test.use(PHONE);
@@ -94,4 +95,41 @@ test("another version starts the review over: the whole model, nothing hidden", 
   await expect(view).toHaveAttribute("data-state", "ready", { timeout: 20_000 });
   await expect(dims(page)).toContainText("ganzes Modell");
   await expect.poll(() => measured(page)).toEqual(["20 mm", "20 mm", "20 mm"]);
+});
+
+test("pointing at a part's row, or tabbing into it, lights the part up in the view; leaving puts it back", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await open(page, "plates.3mf", "Spulenhalter");
+  const view = page.getByRole("img", { name: "3D-Ansicht von Spulenhalter" });
+  // Shown alone, the part fills the view, so its colour weighs in the picture.
+  await page.getByRole("button", { name: "Nur Halter zeigen" }).click();
+  await page.mouse.move(0, 0);
+  await page.getByRole("button", { name: "Nur Halter zeigen" }).blur();
+  await expect.poll(() => measured(page)).toEqual(["20 mm", "20 mm", "20 mm"]);
+  await page.waitForTimeout(500);
+  const before = await look(page, view);
+  const row = parts(page).getByRole("listitem").filter({ hasText: "Halter" });
+
+  await row.hover();
+  await expect.poll(async () => apart(await look(page, view), before), MOVING).toBeGreaterThan(0.05);
+  await page.mouse.move(0, 0);
+  await expect.poll(async () => apart(await look(page, view), before), MOVING).toBeLessThan(0.01);
+
+  await page.getByRole("button", { name: "Nur Halter zeigen" }).focus();
+  await expect.poll(async () => apart(await look(page, view), before), MOVING).toBeGreaterThan(0.05);
+  await page.getByRole("button", { name: "Nur Halter zeigen" }).blur();
+  await expect.poll(async () => apart(await look(page, view), before), MOVING).toBeLessThan(0.01);
+});
+
+test("Vollbild shows the view across the screen, and again leaves it", async ({ page }) => {
+  await open(page, "plates.3mf", "Spulenhalter");
+  const full = page.getByRole("button", { name: "Vollbild" });
+  const stage = page.locator("[data-stage]");
+  const small = (await stage.boundingBox())!.height;
+  await full.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+  await expect.poll(async () => (await stage.boundingBox())!.height).toBeGreaterThan(small + 100);
+  await full.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect.poll(async () => (await stage.boundingBox())!.height).toBe(small);
 });
