@@ -75,7 +75,8 @@ describe("addVersion", () => {
     const r = await addVersion(rt, modelId, { threemf: upload(rt, "bomb.3mf", bomb), preview: fixture("preview.png"), drawings: [] });
     expect(r.ok).toBe(true);
     expect(process.memoryUsage().arrayBuffers - before).toBeLessThan(100 * 1024 * 1024);
-  });
+    // Zipping 300 MB and scanning it as a stream (the facts) takes 3 to 7 s on a CI runner while the other files' tests run.
+  }, 30_000);
 
   it("refuses bytes that are no zip at all", async () => {
     expect(await addVersion(rt, modelId, { threemf: upload(rt, "x.3mf", "plain"), preview: fixture("preview.png"), drawings: [] })).toMatchObject({
