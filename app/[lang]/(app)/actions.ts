@@ -24,7 +24,7 @@ import { actionPerson } from "@/app/_lib/signin";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor, LANG_HEADER, type Copy } from "@/components/copy";
 
-export type Result = { ok: true; message?: string; token?: string } | { ok: false; error: string };
+export type Result = { ok: true; message?: string; token?: string; id?: string } | { ok: false; error: string };
 
 async function words(): Promise<Copy> {
   return copyFor((await headers()).get(LANG_HEADER) ?? "");
@@ -102,12 +102,13 @@ export async function revokeCustomerLink(id: string): Promise<Result> {
   return { ok: true, message: t.admin.customer.revoked };
 }
 
-export async function addModel(_prev: Result | null, fd: FormData): Promise<Result> {
+/** A new model, answering its id: the form uploads its first version next (NewModel), then opens it. */
+export async function addModel(fd: FormData): Promise<Result> {
   const t = await words();
   if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
   const out = createModel(runtime(), { customerId: field(fd, "customerId"), title: field(fd, "title"), description: field(fd, "description") });
   if (!out.ok) return refused(t, out, t.admin.refused.title);
-  redirect(`/models/${out.value.id}`);
+  return { ok: true, id: out.value.id };
 }
 
 export async function saveModel(_prev: Result | null, fd: FormData): Promise<Result> {

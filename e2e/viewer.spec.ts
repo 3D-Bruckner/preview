@@ -125,7 +125,8 @@ test("another version's 3MF replaces the view: one canvas, the new file", async 
   const newest = (await view.getAttribute("data-threemf"))!;
   expect((await look(page, view)).red).toBe(0);
 
-  await page.getByRole("region", { name: "Versionen" }).getByRole("link").nth(1).click();
+  await page.getByText("Version 2 ·", { exact: false }).first().click();
+  await page.getByRole("list", { name: "Versionen wählen" }).getByRole("link").nth(1).click();
   await expect(view).not.toHaveAttribute("data-threemf", newest);
   await expect(view).toHaveAttribute("data-state", "ready", MOVING);
   await expect(page.locator("canvas")).toHaveCount(1);

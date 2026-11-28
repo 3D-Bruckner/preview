@@ -43,12 +43,12 @@ export function Feedback({ token, modelId, versionNumber, sent }: { token: strin
   }
 
   return (
-    <Card id="feedback" title={t.title}>
+    <Card id="feedback" title={t.title} aside={t.on(versionNumber)}>
       <form onSubmit={submit} className="space-y-3 p-4">
         {wishes.length > 0 && (
-          <ul aria-label={t.picked} className="space-y-1 text-sm">
+          <ul aria-label={t.picked} className="flex flex-wrap gap-2 text-[0.8125rem]">
             {wishes.map(({ part, f }) => (
-              <li key={part} className="flex items-center gap-2">
+              <li key={part} className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5">
                 <span
                   aria-hidden="true"
                   className="size-3.5 shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgb(127_127_127/0.45)]"
@@ -61,11 +61,19 @@ export function Feedback({ token, modelId, versionNumber, sent }: { token: strin
           </ul>
         )}
         <label className="block">
-          <span className={ui.label}>{t.comment}</span>
-          <textarea name="comment" rows={3} maxLength={2000} value={comment} onChange={(e) => setComment(e.target.value)} className={ui.input} />
+          <span className="sr-only">{t.comment}</span>
+          <textarea
+            name="comment"
+            rows={3}
+            maxLength={2000}
+            value={comment}
+            placeholder={t.placeholder}
+            onChange={(e) => setComment(e.target.value)}
+            className={`${ui.input} mt-0`}
+          />
           <span className={ui.hint}>{filaments.length > 0 ? t.hintColours : t.hint}</span>
         </label>
-        <button type="submit" disabled={busy} className={ui.button}>
+        <button type="submit" disabled={busy} className={`${ui.button} w-full`}>
           {busy ? t.sending : t.send}
         </button>
         <Notice result={result} />

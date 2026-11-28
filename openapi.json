@@ -40,9 +40,13 @@
                           "language": { "type": "string", "enum": ["de", "en"] },
                           "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
                           "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
-                          "created_at": { "type": "string" }
+                          "created_at": { "type": "string" },
+                          "last_seen_at": {
+                            "description": "When the customer last opened their link; null: never. Opens by the signed-in operator don't count.",
+                            "type": ["string", "null"]
+                          }
                         },
-                        "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                        "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at", "last_seen_at"],
                         "additionalProperties": false
                       }
                     }
@@ -95,9 +99,13 @@
                     "language": { "type": "string", "enum": ["de", "en"] },
                     "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
                     "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
-                    "created_at": { "type": "string" }
+                    "created_at": { "type": "string" },
+                    "last_seen_at": {
+                      "description": "When the customer last opened their link; null: never. Opens by the signed-in operator don't count.",
+                      "type": ["string", "null"]
+                    }
                   },
-                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at", "last_seen_at"],
                   "additionalProperties": false
                 }
               }
@@ -144,9 +152,13 @@
                     "language": { "type": "string", "enum": ["de", "en"] },
                     "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
                     "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
-                    "created_at": { "type": "string" }
+                    "created_at": { "type": "string" },
+                    "last_seen_at": {
+                      "description": "When the customer last opened their link; null: never. Opens by the signed-in operator don't count.",
+                      "type": ["string", "null"]
+                    }
                   },
-                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at", "last_seen_at"],
                   "additionalProperties": false
                 }
               }
@@ -195,9 +207,13 @@
                     "language": { "type": "string", "enum": ["de", "en"] },
                     "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
                     "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
-                    "created_at": { "type": "string" }
+                    "created_at": { "type": "string" },
+                    "last_seen_at": {
+                      "description": "When the customer last opened their link; null: never. Opens by the signed-in operator don't count.",
+                      "type": ["string", "null"]
+                    }
                   },
-                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at", "last_seen_at"],
                   "additionalProperties": false
                 }
               }
@@ -245,9 +261,13 @@
                     "language": { "type": "string", "enum": ["de", "en"] },
                     "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
                     "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
-                    "created_at": { "type": "string" }
+                    "created_at": { "type": "string" },
+                    "last_seen_at": {
+                      "description": "When the customer last opened their link; null: never. Opens by the signed-in operator don't count.",
+                      "type": ["string", "null"]
+                    }
                   },
-                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at", "last_seen_at"],
                   "additionalProperties": false
                 }
               }
@@ -285,9 +305,13 @@
                     "language": { "type": "string", "enum": ["de", "en"] },
                     "link_url": { "description": "The customer's secret link; null once revoked.", "type": ["string", "null"] },
                     "admin_url": { "type": "string", "description": "The customer's page in the web app, for the person who runs preview." },
-                    "created_at": { "type": "string" }
+                    "created_at": { "type": "string" },
+                    "last_seen_at": {
+                      "description": "When the customer last opened their link; null: never. Opens by the signed-in operator don't count.",
+                      "type": ["string", "null"]
+                    }
                   },
-                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at"],
+                  "required": ["id", "name", "note", "language", "link_url", "admin_url", "created_at", "last_seen_at"],
                   "additionalProperties": false
                 }
               }
@@ -584,9 +608,13 @@
                           "slicing_error": {
                             "description": "Why the slicing failed (the service's reason, such as off_plate or too_large).",
                             "type": ["string", "null"]
+                          },
+                          "seen_at": {
+                            "description": "When the customer last viewed this version; null: never. Views by the signed-in operator don't count.",
+                            "type": ["string", "null"]
                           }
                         },
-                        "required": ["id", "model_id", "number", "note", "created_at", "parts", "drawings", "figures", "slicing", "slicing_error"],
+                        "required": ["id", "model_id", "number", "note", "created_at", "parts", "drawings", "figures", "slicing", "slicing_error", "seen_at"],
                         "additionalProperties": false
                       }
                     }

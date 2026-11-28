@@ -22,7 +22,7 @@ export { resliceVersion } from "./figures";
 export { listFeedback, markFeedbackSeen, sendFeedback, unseenFeedback, type Feedback } from "./feedback";
 export { createFilament, deleteFilament, filamentName, listFilaments, updateFilament, type Filament } from "./filaments";
 export { startSliceWorker } from "./slicer";
-export { addVersion, UPLOAD_TYPES, type UploadedFile } from "./files";
+export { addVersion, UPLOAD_TYPES, versionFile, type UploadedFile } from "./files";
 export { healthResponse } from "./health";
 export { log } from "./log";
 export { MCP_INSTRUCTIONS, mcpContext } from "./mcp";
@@ -31,6 +31,7 @@ export type { Outcome, Reason } from "./outcome";
 export { OPEN_API, REST_OPS } from "./rest";
 export type { Runtime } from "./runtime";
 export { listVersions, type Version } from "./versions";
+export { modelSeenAt, recordView } from "./views";
 
 // One runtime per process, kept on globalThis so Next's dev server, which reloads modules, doesn't open the database twice.
 const g = globalThis as { __preview?: Runtime };

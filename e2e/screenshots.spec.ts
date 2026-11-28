@@ -24,7 +24,10 @@ test("the customer's model page", async ({ page }) => {
   await page.goto(`/k/${c.link}/${m.id}`);
   await expect(page.getByRole("img", { name: "3D-Ansicht von Schreibtisch-Organizer" })).toHaveAttribute("data-state", "ready", { timeout: 30_000 });
   await page.getByLabel("Farbe für Clip").selectOption({ label: "Signalrot (PLA)" });
-  await page.getByRole("region", { name: "Rückmeldung" }).getByLabel("Kommentar").fill("Den Clip bitte in Rot, sonst passt alles.");
+  await page
+    .getByRole("region", { name: /Rückmeldung/ })
+    .getByLabel("Kommentar")
+    .fill("Den Clip bitte in Rot, sonst passt alles.");
   await page.waitForTimeout(800);
   await page.evaluate(() => document.querySelector("nextjs-portal")?.remove());
   await page.screenshot({ path: join(process.cwd(), "docs/images/customer-model-page.png"), fullPage: true });

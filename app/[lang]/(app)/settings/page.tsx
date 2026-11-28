@@ -24,25 +24,28 @@ export default async function SettingsPage({ params }: PageProps<"/[lang]/settin
   return (
     <>
       <h1 className={ui.h1}>{t.title}</h1>
-      <Tokens
-        tokens={tokens.map((k) => ({
-          id: k.id,
-          name: k.name,
-          scope: k.scope,
-          lastUsed: k.last_used_at ? formatWhen(lang, k.last_used_at) : null,
-          expires: k.expires_at ? formatDay(lang, k.expires_at) : null,
-        }))}
-      />
-      <Filaments
-        filaments={listFilaments(runtime()).map((f) => ({
-          id: f.id,
-          name: f.name,
-          material: f.material,
-          color: f.color,
-          available: f.available,
-          position: f.position,
-        }))}
-      />
+      {/* Side by side on a desktop, the filaments first: they are what changes. */}
+      <div className="grid items-start gap-x-10 lg:grid-cols-2">
+        <Filaments
+          filaments={listFilaments(runtime()).map((f) => ({
+            id: f.id,
+            name: f.name,
+            material: f.material,
+            color: f.color,
+            available: f.available,
+            position: f.position,
+          }))}
+        />
+        <Tokens
+          tokens={tokens.map((k) => ({
+            id: k.id,
+            name: k.name,
+            scope: k.scope,
+            lastUsed: k.last_used_at ? formatWhen(lang, k.last_used_at) : null,
+            expires: k.expires_at ? formatDay(lang, k.expires_at) : null,
+          }))}
+        />
+      </div>
       {/* The dev user has no session to end. */}
       {!person.id.startsWith("dev:") && <SignOut />}
     </>

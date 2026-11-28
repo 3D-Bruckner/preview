@@ -1,7 +1,18 @@
 // The app's icons (conventions: code/icons): lucide only, one icon per thing, picked here. An icon repeats a word next to it and is
 // aria-hidden; an icon-only control carries an aria-label.
 export {
+  ArrowUpRight as OpenLinkIcon,
+  Ban as RevokeIcon,
   CircleAlert as ProblemIcon,
+  Copy as CopyIcon,
+  Mail as MailIcon,
+  MessageCircle as ChatIcon,
+  MessageSquare as FeedbackIcon,
+  Pencil as EditIcon,
+  RefreshCw as RenewIcon,
+  Search as SearchIcon,
+  Upload as UploadIcon,
+  X as RemoveIcon,
   Box as ModelsIcon,
   Check as SavedIcon,
   ChevronDown as OpenIcon,

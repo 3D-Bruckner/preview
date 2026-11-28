@@ -5,19 +5,31 @@ import { invalid, notFound, ok, type Outcome } from "./outcome";
 import { mutation, type Runtime } from "./runtime";
 
 export type Language = "de" | "en";
-export type Customer = { id: string; name: string; note: string | null; language: Language; link: string | null; createdAt: string };
+export type Customer = {
+  id: string;
+  name: string;
+  note: string | null;
+  language: Language;
+  link: string | null;
+  createdAt: string;
+  /** When the customer last opened their link (backend/views.ts); null: never. */
+  lastSeenAt: string | null;
+};
 
 const LANGUAGES: Language[] = ["de", "en"];
 
 const newToken = () => randomBytes(24).toString("base64url");
 
-const customer = (row: { id: string; name: string; note: string | null; language: Language; link_token: string | null; created_at: string }): Customer => ({
+type Row = { id: string; name: string; note: string | null; language: Language; link_token: string | null; created_at: string; seen_at?: string | null };
+
+const customer = (row: Row): Customer => ({
   id: row.id,
   name: row.name,
   note: row.note,
   language: row.language,
   link: row.link_token,
   createdAt: row.created_at,
+  lastSeenAt: row.seen_at ?? null,
 });
 
 function checkName(name: string): Outcome<string> {

@@ -2,7 +2,7 @@
 
 View-only 3D previews of your models for your customers. A workshop uploads each version of a model (a 3MF, a preview image, optional drawings); every customer gets one secret link to a page with their models, where they turn and zoom each one in 3D, look at each part alone or hide it, see its measurements and filaments, what printing it takes (time, weight, grams per filament), try your filaments on each part and send you a comment and their colour wishes, see its versions with their notes, and can't download it. Customers need no account; you revoke or renew a link at any time.
 
-![A customer's model page: the 3D view with its tools, the measurements, the parts with their filaments, and the versions](docs/images/customer-model-page.png)
+![A customer's model page: the 3D view with its tools, the measurements and print figures under it, beside it the parts with their colours and the feedback card](docs/images/customer-model-page.png)
 
 preview is one Next.js app in one Docker image, on [next-app-kit](https://github.com/Marceltov/next-app-kit), which brings the sign-in, API tokens, MCP, REST, migrations and uploads. Its data is two SQLite files and the uploaded files, in one directory.
 
@@ -62,7 +62,7 @@ curl -fsS https://preview.example.com/api/models/<model-id>/versions \
   -F note="Wall thickness 2 mm"
 ```
 
-`model` (one 3MF) and `preview` (one PNG) are required, `drawing` takes 0 to 10 PNG, SVG or PDF files, `note` is text. The answer is `201` with `{"id", "number", "note", "link"}`, `link` being the model's page for its customer; a refusal is `{"error"}` in the request's language. A request may carry up to `PREVIEW_MAX_UPLOAD_MB` (100) in all. Everything else (customers, models, versions' lists, tokens) is the REST API at `/api/v1`, described at `<PUBLIC_URL>/api/v1/openapi.json` (committed as [`openapi.json`](openapi.json)), and Claude manages it over MCP at `<PUBLIC_URL>/mcp` ([the tools](docs/mcp.md)).
+`model` (one 3MF) is required; `preview` (one PNG) is optional when the 3MF carries a picture of its own (Bambu Studio's `Metadata/plate_1.png`, or `Metadata/thumbnail.png`), which is then the preview; `drawing` takes 0 to 10 PNG, SVG or PDF files, `note` is text. The answer is `201` with `{"id", "number", "note", "link"}`, `link` being the model's page for its customer; a refusal is `{"error"}` in the request's language. A request may carry up to `PREVIEW_MAX_UPLOAD_MB` (100) in all. Everything else (customers, models, versions' lists, tokens) is the REST API at `/api/v1`, described at `<PUBLIC_URL>/api/v1/openapi.json` (committed as [`openapi.json`](openapi.json)), and Claude manages it over MCP at `<PUBLIC_URL>/mcp` ([the tools](docs/mcp.md)).
 
 ## Developing
 

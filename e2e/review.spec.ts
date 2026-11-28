@@ -22,7 +22,7 @@ async function measured(page: Page) {
   return dims(page).locator("dd").allInnerTexts();
 }
 
-test("lists the parts with their filament; focus, the eye and the measurements follow each other", async ({ page }) => {
+test("lists the parts with their filament; several parts are shown alone together, with a bar back to the whole model, and measured", async ({ page }) => {
   await open(page, "plates.3mf", "Spulenhalter");
   const rows = parts(page).getByRole("listitem");
   await expect(rows).toHaveCount(3);
@@ -33,21 +33,26 @@ test("lists the parts with their filament; focus, the eye and the measurements f
   await expect(rows.nth(2)).toContainText("Spule 2");
   await expect(dims(page)).toContainText("ganzes Modell");
   expect(await measured(page)).toEqual(["322 mm", "20 mm", "20 mm"]);
+  await expect(page.locator("[data-focus-bar]")).toHaveCount(0);
 
-  const eye = page.getByRole("button", { name: "Halter ein- oder ausblenden" });
-  await expect(eye).toHaveAttribute("aria-pressed", "true");
-  await eye.click();
-  await expect(eye).toHaveAttribute("aria-pressed", "false");
-  await expect.poll(() => measured(page)).toEqual(["22 mm", "10 mm", "10 mm"]);
-
-  const focus = page.getByRole("button", { name: "Nur Spule 1 zeigen" });
-  await focus.click();
-  await expect(focus).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Spule 1 zur Ansicht hinzufügen" }).click();
+  const out = page.getByRole("button", { name: "Spule 1 aus der Ansicht nehmen" });
+  await expect(out).toHaveAttribute("aria-pressed", "true");
   await expect(dims(page).getByRole("heading")).toContainText("Spule 1");
+  await expect(parts(page).getByRole("heading")).toContainText("1 von 3 gezeigt");
   await expect.poll(() => measured(page)).toEqual(["10 mm", "10 mm", "10 mm"]);
-  await focus.click();
-  await expect(focus).toHaveAttribute("aria-pressed", "false");
+
+  await page.getByRole("button", { name: "Halter zur Ansicht hinzufügen" }).click();
+  await expect(page.locator("[data-focus-bar]")).toContainText("Nur Halter + Spule 1");
+  await expect(dims(page).getByRole("heading")).toContainText("Halter + Spule 1");
+  await expect.poll(() => measured(page)).toEqual(["310 mm", "20 mm", "20 mm"]);
+
+  await out.click();
+  await expect.poll(() => measured(page)).toEqual(["20 mm", "20 mm", "20 mm"]);
+  await page.locator("[data-focus-bar]").getByRole("button", { name: "Ganzes Modell" }).click();
+  await expect(page.locator("[data-focus-bar]")).toHaveCount(0);
   await expect(dims(page)).toContainText("ganzes Modell");
+  await expect.poll(() => measured(page)).toEqual(["322 mm", "20 mm", "20 mm"]);
 });
 
 test("the view's tools: four directions, the grid and fit", async ({ page }) => {
@@ -75,7 +80,7 @@ test("on a desktop, the measurements chip over the view says the whole model's s
   await expect(page.getByTestId("size-chip")).toHaveText("20 × 20 × 20 mm");
 });
 
-test("another version starts the review over: the whole model, nothing hidden", async ({ page }) => {
+test("another version starts the review over: the whole model, nothing picked", async ({ page }) => {
   const c = customer(`Prüfer ${Math.random().toString(36).slice(2, 6)}`);
   const m = model(c, "Spulenhalter");
   await version(m, { threemf: "ramp.3mf", note: "Rampe" });
@@ -83,12 +88,13 @@ test("another version starts the review over: the whole model, nothing hidden", 
   await page.goto(`/k/${c.link}/${m.id}`);
   const view = page.getByRole("img", { name: "3D-Ansicht von Spulenhalter" });
   await expect(view).toHaveAttribute("data-state", "ready", { timeout: 20_000 });
-  await page.getByRole("button", { name: "Nur Spule 1 zeigen" }).click();
+  await page.getByRole("button", { name: "Spule 1 zur Ansicht hinzufügen" }).click();
   await expect.poll(() => measured(page)).toEqual(["10 mm", "10 mm", "10 mm"]);
 
   const newest = (await view.getAttribute("data-threemf"))!;
+  await page.getByText("Version 2 ·", { exact: false }).first().click();
   await page
-    .getByRole("region", { name: "Versionen" })
+    .getByRole("list", { name: "Versionen wählen" })
     .getByRole("link", { name: /Version 1/ })
     .click();
   await expect(view).not.toHaveAttribute("data-threemf", newest);
@@ -104,9 +110,9 @@ test("pointing at a part's row, or tabbing into it, lights the part up in the vi
   await open(page, "plates.3mf", "Spulenhalter");
   const view = page.getByRole("img", { name: "3D-Ansicht von Spulenhalter" });
   // Shown alone, the part fills the view, so its colour weighs in the picture.
-  await page.getByRole("button", { name: "Nur Halter zeigen" }).click();
+  await page.getByRole("button", { name: "Halter zur Ansicht hinzufügen" }).click();
   await page.mouse.move(0, 0);
-  await page.getByRole("button", { name: "Nur Halter zeigen" }).blur();
+  await page.getByRole("button", { name: "Halter aus der Ansicht nehmen" }).blur();
   await expect.poll(() => measured(page)).toEqual(["20 mm", "20 mm", "20 mm"]);
   await page.waitForTimeout(500);
   const before = await look(page, view);
@@ -117,9 +123,9 @@ test("pointing at a part's row, or tabbing into it, lights the part up in the vi
   await page.mouse.move(0, 0);
   await expect.poll(async () => apart(await look(page, view), before), MOVING).toBeLessThan(0.01);
 
-  await page.getByRole("button", { name: "Nur Halter zeigen" }).focus();
+  await page.getByRole("button", { name: "Halter aus der Ansicht nehmen" }).focus();
   await expect.poll(async () => apart(await look(page, view), before), MOVING).toBeGreaterThan(0.05);
-  await page.getByRole("button", { name: "Nur Halter zeigen" }).blur();
+  await page.getByRole("button", { name: "Halter aus der Ansicht nehmen" }).blur();
   await expect.poll(async () => apart(await look(page, view), before), MOVING).toBeLessThan(0.01);
 });
 

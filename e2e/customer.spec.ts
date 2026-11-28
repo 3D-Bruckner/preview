@@ -113,10 +113,13 @@ test("a model's page shows the newest version, the versions with their notes and
 
   const viewer = page.getByRole("img", { name: "3D-Ansicht von Rampe" });
   await expect(viewer).toHaveAttribute("data-threemf", new RegExp(`^/k/${a.link}/files/[0-9a-f-]{36}/model\\.3mf$`));
-  const versions = page.getByRole("region", { name: "Versionen" }).getByRole("listitem");
+  // One version picker (no Versionen card): the newest shown, what is new in it under the title, the older ones with their notes.
+  await expect(page.getByRole("region", { name: "Versionen" })).toHaveCount(0);
+  await expect(page.getByText("Neu in Version 2:")).toBeVisible();
+  await expect(page.getByText("2 cm breiter").first()).toBeVisible();
+  await page.getByText("Version 2 ·", { exact: false }).first().click();
+  const versions = page.getByRole("list", { name: "Versionen wählen" }).getByRole("listitem");
   await expect(versions).toHaveCount(2);
-  await expect(versions.nth(0)).toContainText("Version 2");
-  await expect(versions.nth(0)).toContainText("2 cm breiter");
   await expect(versions.nth(1)).toContainText("Erster Entwurf");
 
   // The drawings: the PNG and the SVG as pictures, the PDF the one link, opened by the browser's own viewer.
@@ -264,7 +267,10 @@ test.describe("on a desktop", () => {
     const viewer = await page.getByRole("img", { name: "3D-Ansicht von Rampe" }).boundingBox();
     const aside = await page.getByRole("complementary").boundingBox();
     expect(aside!.x).toBeGreaterThan(viewer!.x + viewer!.width - 1);
-    await expect(page.getByRole("complementary").getByRole("region", { name: "Versionen" })).toContainText("angezeigt");
+    // The side panel holds the parts and the Rückmeldung; Maße and Druck are under the view.
+    await expect(page.getByRole("complementary").getByRole("region", { name: /Rückmeldung/ })).toBeVisible();
+    const dims = await page.getByRole("region", { name: /Maße/ }).boundingBox();
+    expect(dims!.y).toBeGreaterThan(viewer!.y + viewer!.height - 1);
   });
 
   test("the header, the page and the footer share one left edge", async ({ page }) => {

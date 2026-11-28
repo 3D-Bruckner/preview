@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { zipSync } from "fflate";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -82,6 +82,19 @@ describe("addVersion", () => {
     expect(await addVersion(rt, modelId, { threemf: upload(rt, "x.3mf", "plain"), preview: fixture("preview.png"), drawings: [] })).toMatchObject({
       reason: "invalid",
     });
+  });
+
+  it("takes the 3MF's own picture when the upload brings no preview", async () => {
+    const v = value(await addVersion(rt, modelId, { threemf: fixture("plates.3mf"), drawings: [] }));
+    const file = value(versionFile(rt, v.id, "preview"));
+    const own = (await import("fflate")).unzipSync(readFileSync(fixture("plates.3mf").path))["Metadata/plate_1.png"]!;
+    expect(new Uint8Array(readFileSync(file.path))).toEqual(own);
+  });
+
+  it("refuses a 3MF without a picture of its own when the upload brings no preview", async () => {
+    const r = await addVersion(rt, modelId, { threemf: fixture("ramp.3mf"), drawings: [] });
+    expect(r).toMatchObject({ ok: false, reason: "invalid", message: expect.stringContaining("preview") });
+    expect(stored()).toEqual([]);
   });
 
   it("refuses a preview that is no PNG", async () => {

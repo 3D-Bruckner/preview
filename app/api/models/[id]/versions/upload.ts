@@ -2,7 +2,7 @@ import { MultipartError, readMultipart, type Multipart } from "next-app-kit/mult
 import { addVersion, getCustomer, getModel, UPLOAD_TYPES, type Runtime } from "@/backend";
 import { copyFor, languageOf } from "@/components/copy";
 
-// One version per request: the form's fields are `model` (one 3MF), `preview` (one PNG), `drawing` (0 to 10 PNG, SVG or PDF) and the text
+// One version per request: the form's fields are `model` (one 3MF), `preview` (one PNG, optional when the 3MF has a picture of its own), `drawing` (0 to 10 PNG, SVG or PDF) and the text
 // `note`. Authenticated by the session cookie (Better Auth's is SameSite=Lax, so a cross-site post acts for nobody) or by an API token that
 // may write (Authorization: Bearer), which is how the workshop's script uploads. The files wait in the kit's temporary folder while
 // addVersion checks and stores them, and that folder is removed afterwards, whatever happened. A refusal answers { error } in the language
@@ -38,11 +38,15 @@ export async function uploadVersion(rt: Runtime, req: Request, modelId: string):
     const [preview, ...morePreviews] = named("preview");
     const drawings = named("drawing");
     if (!threemf || moreModels.length) return refuse(400, t.noModelFile);
-    if (!preview || morePreviews.length) return refuse(400, t.noPreview);
+    if (morePreviews.length) return refuse(400, t.onePreview);
     if (drawings.length > MAX_DRAWINGS) return refuse(400, t.tooManyDrawings);
     if (named("model").length + named("preview").length + drawings.length !== upload.files.length) return refuse(400, t.notAccepted);
     const added = await addVersion(rt, modelId, { threemf, preview, drawings, note: upload.fields.note });
-    if (!added.ok) return refuse(added.reason === "not_found" ? 404 : 400, added.reason === "not_found" ? t.noModel : t.unreadable);
+    if (!added.ok)
+      return refuse(
+        added.reason === "not_found" ? 404 : 400,
+        added.reason === "not_found" ? t.noModel : added.message.startsWith("preview: the 3MF") ? t.noPreview : t.unreadable,
+      );
     const customer = getCustomer(rt, model.value.customerId);
     const token = customer.ok ? customer.value.link : null;
     const link = token ? `${rt.config.publicUrl}/k/${token}/${modelId}` : null;
