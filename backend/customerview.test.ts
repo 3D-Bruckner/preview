@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCustomer, renewLink, revokeLink, type Customer } from "./customers";
 import { customerFile, customerLanguage, customerModel, customerView } from "./customerview";
 import { addVersion } from "./files";
+import { emptyFacts } from "./threemf";
 import { createModel, type Model } from "./models";
 import type { Outcome } from "./outcome";
 import { testRuntime, type TestRuntime } from "./testing/runtime";
@@ -51,7 +52,7 @@ describe("customerView", () => {
         id: ramp.id,
         title: "Ramp",
         description: "For the step",
-        latest: { number: 2, createdAt: v2.createdAt, note: "2 cm wider", previewUrl: `${files(a.link!, v2.id)}/preview.png` },
+        latest: { number: 2, createdAt: v2.createdAt, note: "2 cm wider", previewUrl: `${files(a.link!, v2.id)}/preview.png`, parts: 1 },
       },
     ]);
   });
@@ -97,6 +98,22 @@ describe("customerModel", () => {
   });
 });
 
+describe("a version's facts on the customer's pages", () => {
+  it("carry the parts, and count them on the overview", async () => {
+    const holder = value(createModel(rt, { customerId: a.id, title: "Spool holder" }));
+    value(await addVersion(rt, holder.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    expect(customerView(rt, a.link!)!.models.find((m) => m.id === holder.id)!.latest.parts).toBe(3);
+    const [shown] = customerModel(rt, a.link!, holder.id)!.versions;
+    expect(shown!.facts.parts.map((p) => p.key)).toEqual(["2:0", "4:0", "4:1"]);
+  });
+
+  it("are empty, never an error, for a version not read yet", () => {
+    rt.store.setFacts(v2.id, null);
+    expect(customerView(rt, a.link!)!.models[0]!.latest.parts).toBeNull();
+    expect(customerModel(rt, a.link!, ramp.id)!.versions[0]!.facts).toEqual(emptyFacts());
+  });
+});
+
 describe("customerFile", () => {
   it("finds the token's customer's 3MF, preview and drawings", () => {
     expect(customerFile(rt, a.link!, v1.id, "model.3mf")).toMatchObject({ type: "model/3mf" });
@@ -122,5 +139,26 @@ describe("customerLanguage", () => {
     expect(customerLanguage(rt, a.link!)).toBe("en");
     expect(customerLanguage(rt, b.link!)).toBe("de");
     expect(customerLanguage(rt, "nope")).toBeNull();
+  });
+});
+
+describe("a model page's filaments and feedback", () => {
+  it("offers the available filaments, names the print figures' filaments from the whole list, and shows each version its own feedback", async () => {
+    const { createFilament } = await import("./filaments");
+    const { sendFeedback } = await import("./feedback");
+    value(createFilament(rt, { name: "Bambu Grün", material: "PLA", color: "#00AE42" }));
+    value(createFilament(rt, { name: "Weiß", material: "PETG", color: "#ffffff", available: false }));
+    const plates = value(createModel(rt, { customerId: a.id, title: "Spulenhalter" }));
+    await addVersion(rt, plates.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] });
+    await addVersion(rt, plates.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] });
+    value(await sendFeedback(rt, a.link!, { modelId: plates.id, versionNumber: 1, comment: "Etwas dicker, bitte.", wishes: [] }));
+    const view = customerModel(rt, a.link!, plates.id)!;
+    expect(view.filaments.map((f) => f.name)).toEqual(["Bambu Grün"]);
+    const [second, first] = view.versions;
+    expect(second!.feedback).toEqual([]);
+    expect(first!.feedback).toEqual([{ createdAt: expect.any(String), comment: "Etwas dicker, bitte.", wishes: [] }]);
+    expect(first!.figures!.filaments.map((f) => f.name)).toEqual(["Bambu Grün", "Weiß"]);
+    // Another customer's page shows none of it.
+    expect(customerModel(rt, b.link!, plates.id)).toBeNull();
   });
 });

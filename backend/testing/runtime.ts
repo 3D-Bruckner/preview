@@ -7,9 +7,11 @@ import type { SignInMail } from "next-app-kit/signin";
 import { signInSettings, type MailWording } from "../accounts";
 import { loadConfig } from "../config";
 import { log } from "../log";
+import type { Mail } from "../mail";
 import { openRuntime, type Runtime } from "../runtime";
 
-export type TestRuntime = Runtime & { mail: Map<string, SignInMail> };
+/** `mail`: the sign-in mail caught, by address; `sent`: the app's own mail (feedback) caught, in order. */
+export type TestRuntime = Runtime & { mail: Map<string, SignInMail>; sent: Mail[] };
 
 /** The sign-in mail in tests: the language is the request's `x-test-lang` header, else English. */
 export const TEST_MAIL: MailWording = {
@@ -38,5 +40,6 @@ export function testRuntime(env: Record<string, string> = {}, mail: MailWording 
   const config = loadConfig(all);
   const caught = new Map<string, SignInMail>();
   const signIn = { ...signInSettings(all, config.dataDir, log), mailer: async (m: SignInMail) => void caught.set(m.to, m) };
-  return { ...openRuntime(config, signIn, mail), mail: caught };
+  const sent: Mail[] = [];
+  return { ...openRuntime(config, signIn, mail), mail: caught, sent, sendMail: async (m) => void sent.push(m) };
 }

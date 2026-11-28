@@ -9,6 +9,8 @@
   "tags": [
     { "name": "Customers", "description": "Who the models are for, and the link each opens their page by." },
     { "name": "Models", "description": "What a customer is shown, and its versions." },
+    { "name": "Filaments", "description": "The operator's filaments: what a customer can pick for each part, and send back as a colour wish." },
+    { "name": "Feedback", "description": "What customers sent back on a version: a comment and colour wishes." },
     { "name": "Tokens", "description": "The caller's own API tokens." }
   ],
   "paths": {
@@ -523,6 +525,10 @@
                           "number": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
                           "note": { "type": ["string", "null"] },
                           "created_at": { "type": "string" },
+                          "parts": {
+                            "anyOf": [{ "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 }, { "type": "null" }],
+                            "description": "How many parts its 3MF has; null until its 3MF has been read (reread_facts)."
+                          },
                           "drawings": {
                             "type": "array",
                             "items": {
@@ -531,9 +537,56 @@
                               "required": ["id", "kind"],
                               "additionalProperties": false
                             }
+                          },
+                          "figures": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "enum": ["file", "slicer"],
+                                    "description": "file: Bambu Studio's own slice in the 3MF; slicer: the slicing service's, on its fixed profiles."
+                                  },
+                                  "seconds": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Print time in seconds."
+                                  },
+                                  "grams": { "type": "number", "description": "Weight in grams, the whole model." },
+                                  "filaments": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "slot": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                                        "type": { "type": ["string", "null"] },
+                                        "color": { "description": "#rrggbb", "type": ["string", "null"] },
+                                        "grams": { "type": "number" }
+                                      },
+                                      "required": ["slot", "type", "color", "grams"],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": ["source", "seconds", "grams", "filaments"],
+                                "additionalProperties": false
+                              },
+                              { "type": "null" }
+                            ],
+                            "description": "What printing the whole model takes; null while there are none (see slicing)."
+                          },
+                          "slicing": {
+                            "anyOf": [{ "type": "string", "enum": ["pending", "failed"] }, { "type": "null" }],
+                            "description": "pending: the slicing service will answer for a 3MF without figures of its own; failed: it couldn't (slicing_error); null otherwise."
+                          },
+                          "slicing_error": {
+                            "description": "Why the slicing failed (the service's reason, such as off_plate or too_large).",
+                            "type": ["string", "null"]
                           }
                         },
-                        "required": ["id", "model_id", "number", "note", "created_at", "drawings"],
+                        "required": ["id", "model_id", "number", "note", "created_at", "parts", "drawings", "figures", "slicing", "slicing_error"],
                         "additionalProperties": false
                       }
                     }
@@ -549,6 +602,494 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/versions/{id}/facts": {
+      "post": {
+        "operationId": "rereadFacts",
+        "summary": "Read the version's 3MF again for its parts and filament colours",
+        "description": "The REST counterpart of the MCP tool `reread_facts`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The version's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "What was read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "parts": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991,
+                      "description": "How many parts the version's 3MF has."
+                    }
+                  },
+                  "required": ["parts"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/versions/{id}/slice": {
+      "post": {
+        "operationId": "resliceVersion",
+        "summary": "Ask the slicing service again for the version's print figures",
+        "description": "The REST counterpart of the MCP tool `reslice_version`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The version's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Back in line for the slicer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "slicing": { "type": "string", "const": "pending" } },
+                  "required": ["slicing"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/filaments": {
+      "get": {
+        "operationId": "listFilaments",
+        "summary": "The operator's filaments in picker order, all or only those offered (?available=true) or not (false)",
+        "description": "The REST counterpart of the MCP tool `list_filaments`.",
+        "tags": ["Filaments"],
+        "security": [{ "bearer": [] }],
+        "parameters": [
+          {
+            "name": "available",
+            "in": "query",
+            "required": false,
+            "description": "true: only those offered; false: only those not.",
+            "schema": { "description": "true: only those offered; false: only those not.", "type": "string", "enum": ["true", "false"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The filaments",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "filaments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "name": { "type": "string" },
+                          "material": { "type": "string" },
+                          "color": { "type": "string" },
+                          "available": { "type": "boolean" },
+                          "position": { "type": "number" },
+                          "created_at": { "type": "string" },
+                          "updated_at": { "type": "string" }
+                        },
+                        "required": ["id", "name", "material", "color", "available", "position", "created_at", "updated_at"],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["filaments"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createFilament",
+        "summary": "Add a filament to the end of the list",
+        "description": "The REST counterpart of the MCP tool `create_filament`.",
+        "tags": ["Filaments"],
+        "security": [{ "bearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 60, "description": "What the customer sees in the picker, e.g. \"Bambu Grün\"." },
+                  "material": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "description": "As the slicer writes it, e.g. PLA or PETG; with the colour it names a file's filament."
+                  },
+                  "color": { "type": "string", "description": "#rrggbb, e.g. #00ae42." },
+                  "available": { "description": "Whether the customer can pick it (default true); false keeps it without offering it.", "type": "boolean" }
+                },
+                "required": ["name", "material", "color"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new filament",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "name": { "type": "string" },
+                    "material": { "type": "string" },
+                    "color": { "type": "string" },
+                    "available": { "type": "boolean" },
+                    "position": { "type": "number" },
+                    "created_at": { "type": "string" },
+                    "updated_at": { "type": "string" }
+                  },
+                  "required": ["id", "name", "material", "color", "available", "position", "created_at", "updated_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/filaments/{id}": {
+      "patch": {
+        "operationId": "updateFilament",
+        "summary": "Change a filament; only what is given changes",
+        "description": "The REST counterpart of the MCP tool `update_filament`.",
+        "tags": ["Filaments"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The filament's id", "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "maxLength": 60, "description": "What the customer sees in the picker, e.g. \"Bambu Grün\"." },
+                  "material": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20,
+                    "description": "As the slicer writes it, e.g. PLA or PETG; with the colour it names a file's filament."
+                  },
+                  "color": { "type": "string", "description": "#rrggbb, e.g. #00ae42." },
+                  "available": { "description": "Whether the customer can pick it (default true); false keeps it without offering it.", "type": "boolean" },
+                  "position": {
+                    "description": "Its place in the picker, from 1; equal places keep the order they were made in.",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The filament",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "minLength": 1 },
+                    "name": { "type": "string" },
+                    "material": { "type": "string" },
+                    "color": { "type": "string" },
+                    "available": { "type": "boolean" },
+                    "position": { "type": "number" },
+                    "created_at": { "type": "string" },
+                    "updated_at": { "type": "string" }
+                  },
+                  "required": ["id", "name", "material", "color", "available", "position", "created_at", "updated_at"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteFilament",
+        "summary": "Delete a filament; feedback that named it keeps its name, material and colour",
+        "description": "The REST counterpart of the MCP tool `delete_filament`.",
+        "tags": ["Filaments"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The filament's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Which was deleted",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"], "additionalProperties": false }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/feedback": {
+      "get": {
+        "operationId": "listFeedback",
+        "summary": "Customers' feedback, newest first; filter by ?customer=, ?model= and ?unseen=true",
+        "description": "The REST counterpart of the MCP tool `list_feedback`.",
+        "tags": ["Feedback"],
+        "security": [{ "bearer": [] }],
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "query",
+            "required": false,
+            "description": "Only this customer's.",
+            "schema": { "description": "Only this customer's.", "type": "string", "minLength": 1 }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Only on this model's versions.",
+            "schema": { "description": "Only on this model's versions.", "type": "string", "minLength": 1 }
+          },
+          {
+            "name": "unseen",
+            "in": "query",
+            "required": false,
+            "description": "true: only what hasn't been seen.",
+            "schema": { "description": "true: only what hasn't been seen.", "type": "string", "enum": ["true", "false"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The feedback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "feedback": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "customer_id": { "type": "string", "minLength": 1 },
+                          "customer_name": { "type": "string" },
+                          "model_id": { "type": "string", "minLength": 1 },
+                          "model_title": { "type": "string" },
+                          "version_id": { "type": "string", "minLength": 1 },
+                          "version_number": { "type": "number" },
+                          "comment": { "type": ["string", "null"] },
+                          "wishes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "part": { "type": "string", "description": "The part's key in the version's facts." },
+                                "part_name": { "type": ["string", "null"] },
+                                "filament": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": { "type": "string", "minLength": 1 },
+                                    "name": { "type": "string" },
+                                    "material": { "type": "string" },
+                                    "color": { "type": "string" }
+                                  },
+                                  "required": ["id", "name", "material", "color"],
+                                  "additionalProperties": false,
+                                  "description": "As it was when the wish was sent."
+                                }
+                              },
+                              "required": ["part", "part_name", "filament"],
+                              "additionalProperties": false
+                            },
+                            "description": "A filament per part the customer would like."
+                          },
+                          "created_at": { "type": "string" },
+                          "seen_at": { "description": "When it was seen in the web app; null: new.", "type": ["string", "null"] },
+                          "admin_url": { "type": "string", "description": "The model's page in the web app, where the feedback is listed under its version." }
+                        },
+                        "required": [
+                          "id",
+                          "customer_id",
+                          "customer_name",
+                          "model_id",
+                          "model_title",
+                          "version_id",
+                          "version_number",
+                          "comment",
+                          "wishes",
+                          "created_at",
+                          "seen_at",
+                          "admin_url"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["feedback"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/feedback/seen": {
+      "post": {
+        "operationId": "markFeedbackSeen",
+        "summary": "Mark feedback as seen; already seen stays as it was",
+        "description": "The REST counterpart of the MCP tool `mark_feedback_seen`.",
+        "tags": ["Feedback"],
+        "security": [{ "bearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "description": "The feedback's ids (list_feedback)."
+                  }
+                },
+                "required": ["ids"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "How many were marked",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "marked": { "type": "number" } }, "required": ["marked"], "additionalProperties": false }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
         }
       }
     },

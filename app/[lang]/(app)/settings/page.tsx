@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { listApiTokens } from "next-app-kit/tokens";
+import { listFilaments } from "@/backend";
 import { requirePerson } from "@/app/_lib/signin";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor } from "@/components/copy";
 import { formatDay, formatWhen } from "@/components/format";
 import { ui } from "@/components/ui";
+import { Filaments } from "./Filaments";
 import { SignOut } from "./SignOut";
 import { Tokens } from "./Tokens";
 
@@ -12,7 +14,7 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/settings">
   return { title: copyFor((await params).lang).settings.title };
 }
 
-// API tokens (made, listed with their last use, revoked; a new one shown once), the kit's.
+// The filaments customers can pick (backend/filaments.ts), and the API tokens (made, listed with their last use, revoked; a new one shown once), the kit's.
 export default async function SettingsPage({ params }: PageProps<"/[lang]/settings">) {
   const person = await requirePerson("/settings");
   const lang = (await params).lang;
@@ -29,6 +31,16 @@ export default async function SettingsPage({ params }: PageProps<"/[lang]/settin
           scope: k.scope,
           lastUsed: k.last_used_at ? formatWhen(lang, k.last_used_at) : null,
           expires: k.expires_at ? formatDay(lang, k.expires_at) : null,
+        }))}
+      />
+      <Filaments
+        filaments={listFilaments(runtime()).map((f) => ({
+          id: f.id,
+          name: f.name,
+          material: f.material,
+          color: f.color,
+          available: f.available,
+          position: f.position,
         }))}
       />
       {/* The dev user has no session to end. */}

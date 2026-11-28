@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import type { ReactNode } from "react";
 import { customerModel } from "@/backend";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor } from "@/components/copy";
 import { formatDay } from "@/components/format";
 import { CrumbIcon, OpenIcon } from "@/components/icons";
-import { ModelViewer } from "@/components/ModelViewer";
+import { Card } from "@/components/Card";
+import { ModelReview } from "@/components/ModelReview";
+import { PrintFigures } from "@/components/PrintFigures";
+import { Feedback } from "./Feedback";
 import { ui } from "@/components/ui";
 
 type Props = PageProps<"/[lang]/k/[token]/[model]">;
@@ -18,21 +20,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return view ? { title: view.model.title } : {};
 }
 
-/** A card of the side panel: a small heading row over a hairline, an optional muted count on the right. */
-function Card({ id, title, aside, children }: { id: string; title: string; aside?: ReactNode; children: ReactNode }) {
-  return (
-    <section aria-labelledby={id} className="rounded-md border border-border bg-paper">
-      <h2 id={id} className="flex items-baseline justify-between gap-3 border-b border-border px-4 py-3 text-sm font-semibold">
-        {title}
-        {aside != null && <span className="text-[0.8125rem] font-normal text-muted tabular">{aside}</span>}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-// One model of a customer's: the 3D view of the picked version (the newest unless ?v=<number> picks another) beside a side panel with the
-// versions and the picked version's drawings; under 1024 px it all stacks. A version picker by the title offers the same versions. Nothing
+// One model of a customer's: the 3D view of the picked version (the newest unless ?v=<number> picks another) beside a side panel with its
+// measurements, print figures and parts with their colour pickers (ModelReview, PrintFigures), the versions and the picked version's drawings, and the Rückmeldung card (Feedback); under 1024 px it all stacks. A version picker by the title offers the same versions. Nothing
 // here is a download: no download attribute, and only a PDF drawing is a link, which the browser opens in its own viewer. A model that is
 // not the token's customer's is the same 404 as any missing page.
 export default async function CustomerModelPage({ params, searchParams }: Props) {
@@ -90,58 +79,73 @@ export default async function CustomerModelPage({ params, searchParams }: Props)
         </details>
       </div>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <ModelViewer src={shown.threemfUrl} label={t.viewer(view.model.title)} />
-
-        <aside className="grid gap-4">
-          <Card id="versions" title={t.versions} aside={view.versions.length}>
-            <ol className="divide-y divide-border">
-              {view.versions.map((v) => {
-                const current = v.number === shown.number;
-                return (
-                  <li key={v.number}>
-                    <Link href={href(v.number)} aria-current={current ? "page" : undefined} className="flex gap-3 px-4 py-2.5 hover:bg-surface">
-                      <span
-                        aria-hidden="true"
-                        className={`mt-1.5 size-2.5 shrink-0 rounded-full border-[1.5px] ${current ? "border-ink bg-ink" : "border-line"}`}
-                      />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold tabular">
-                          {t.version(v.number)}
-                          {" · "}
-                          {when(v.createdAt)}
-                          {current && <span className="ml-2 rounded-full border border-line px-2 text-xs font-medium">{t.shown}</span>}
-                        </span>
-                        {v.note && <span className="mt-0.5 block text-[0.8125rem] text-muted">{v.note}</span>}
+      {/* Keyed by the file: another version starts the review over (whole model, nothing hidden). */}
+      <ModelReview
+        key={shown.threemfUrl}
+        src={shown.threemfUrl}
+        label={t.viewer(view.model.title)}
+        facts={shown.facts}
+        print={<PrintFigures lang={lang} figures={shown.figures} pending={shown.printPending} />}
+        filaments={view.filaments}
+      >
+        <Card id="versions" title={t.versions} aside={view.versions.length}>
+          <ol className="divide-y divide-border">
+            {view.versions.map((v) => {
+              const current = v.number === shown.number;
+              return (
+                <li key={v.number}>
+                  <Link href={href(v.number)} aria-current={current ? "page" : undefined} className="flex gap-3 px-4 py-2.5 hover:bg-surface">
+                    <span
+                      aria-hidden="true"
+                      className={`mt-1.5 size-2.5 shrink-0 rounded-full border-[1.5px] ${current ? "border-ink bg-ink" : "border-line"}`}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold tabular">
+                        {t.version(v.number)}
+                        {" · "}
+                        {when(v.createdAt)}
+                        {current && <span className="ml-2 rounded-full border border-line px-2 text-xs font-medium">{t.shown}</span>}
                       </span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ol>
-          </Card>
+                      {v.note && <span className="mt-0.5 block text-[0.8125rem] text-muted">{v.note}</span>}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
+        </Card>
 
-          {shown.drawings.length > 0 && (
-            <Card id="drawings" title={t.drawings} aside={shown.drawings.length}>
-              <ul className="grid grid-cols-2 gap-3 p-4">
-                {/* Shown with <img> only, never inlined into the page: a stored SVG may carry script. */}
-                {shown.drawings.map((d, i) => (
-                  <li key={d.url} className={d.kind === "pdf" ? "col-span-2" : ""}>
-                    {d.kind === "pdf" ? (
-                      <a href={d.url} target="_blank" rel="noopener" className="text-sm underline">
-                        {t.pdf(i + 1)}
-                      </a>
-                    ) : (
-                      // eslint-disable-next-line @next/next/no-img-element -- the customer's own file route, private; an SVG must stay an <img>
-                      <img src={d.url} alt={t.drawing(i + 1)} loading="lazy" className="w-full rounded-md border border-border bg-white" />
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-        </aside>
-      </div>
+        {shown.drawings.length > 0 && (
+          <Card id="drawings" title={t.drawings} aside={shown.drawings.length}>
+            <ul className="grid grid-cols-2 gap-3 p-4">
+              {/* Shown with <img> only, never inlined into the page: a stored SVG may carry script. */}
+              {shown.drawings.map((d, i) => (
+                <li key={d.url} className={d.kind === "pdf" ? "col-span-2" : ""}>
+                  {d.kind === "pdf" ? (
+                    <a href={d.url} target="_blank" rel="noopener" className="text-sm underline">
+                      {t.pdf(i + 1)}
+                    </a>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element -- the customer's own file route, private; an SVG must stay an <img>
+                    <img src={d.url} alt={t.drawing(i + 1)} loading="lazy" className="w-full rounded-md border border-border bg-white" />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+        <Feedback
+          token={token}
+          modelId={view.model.id}
+          versionNumber={shown.number}
+          sent={shown.feedback.map((f) => ({
+            createdAt: f.createdAt,
+            day: formatDay(lang, f.createdAt),
+            comment: f.comment,
+            wishes: f.wishes.map((w) => ({ part: w.part, partName: w.partName, name: w.filament.name, material: w.filament.material })),
+          }))}
+        />
+      </ModelReview>
     </>
   );
 }

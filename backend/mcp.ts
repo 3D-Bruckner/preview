@@ -7,6 +7,9 @@ import { defineTool, refuse, type McpContext, type Tool } from "next-app-kit/mcp
 import { createApiToken, listApiTokens, revokeApiToken } from "next-app-kit/tokens";
 import * as z from "zod";
 import { createCustomer, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer } from "./customers";
+import { rereadFacts } from "./facts";
+import { listFeedback, markFeedbackSeen } from "./feedback";
+import { createFilament, deleteFilament, listFilaments, updateFilament, type FilamentInput } from "./filaments";
 import { createModel, listModels, updateModel } from "./models";
 import type { Outcome } from "./outcome";
 import type { Runtime } from "./runtime";
@@ -15,6 +18,16 @@ import {
   customerJson,
   customerPatchSchema,
   customerSchema,
+  factsReadSchema,
+  feedbackFilterSchema,
+  feedbackJson,
+  feedbackSchema,
+  markSeenSchema,
+  filamentInputSchema,
+  filamentJson,
+  filamentPatchSchema,
+  filamentSchema,
+  sliceSchema,
   modelInputSchema,
   modelOf,
   modelPatchSchema,
@@ -26,6 +39,7 @@ import {
   versionSchema,
 } from "./shapes";
 import { listVersions } from "./versions";
+import { resliceVersion } from "./figures";
 
 /** A domain refusal as the tool's refusal. */
 const refused = (o: Extract<Outcome<unknown>, { ok: false }>) => refuse(o.message);
@@ -207,6 +221,135 @@ export function mcpTools(rt: Runtime): Tool[] {
           versions: v.value.map(versionJson),
           guidance: [v.value.length === 0 ? `No versions yet. ${UPLOAD(modelId)}` : `The customer sees all ${v.value.length} on their link, the newest first.`],
         };
+      },
+    }),
+    defineTool({
+      name: "reread_facts",
+      description:
+        "Read a version's 3MF again for its parts and filament colours (done at upload and at start; needed only after preview's 3MF reader changed, or when a customer's page lists the parts wrongly).",
+      input: z.object({ version_id: z.string().min(1).describe("The version's id (list_versions).") }),
+      output: factsReadSchema,
+      annotations: WRITE,
+      handle: async ({ version_id }) => {
+        const r = rereadFacts(rt, version_id);
+        if (!r.ok) return refused(r);
+        return { ...r.value, guidance: [`The version has ${r.value.parts} parts now; the customer's page lists them on its next load.`] };
+      },
+    }),
+    defineTool({
+      name: "reslice_version",
+      description:
+        "Ask the slicing service again for a version's print figures (time, weight, grams per filament) when its slicing failed (list_versions' slicing_error). Only for a 3MF without Bambu Studio's own figures, on an instance with a slicer.",
+      input: z.object({ version_id: z.string().min(1).describe("The version's id (list_versions).") }),
+      output: sliceSchema,
+      annotations: WRITE,
+      handle: async ({ version_id }) => {
+        const r = resliceVersion(rt, version_id);
+        if (!r.ok) return refused(r);
+        return {
+          ...r.value,
+          guidance: ["Back in line for the slicer; the customer's page says it is being worked out until it answers (usually within minutes)."],
+        };
+      },
+    }),
+    // Filaments
+    defineTool({
+      name: "list_filaments",
+      description:
+        "The operator's filaments in picker order: what a customer can pick for each part of a model and send back as a colour wish. Each has a name, material, colour (#rrggbb) and whether it is offered.",
+      input: z.object({ available: z.boolean().optional().describe("true: only those offered; false: only those kept but not offered.") }),
+      output: z.object({ filaments: z.array(filamentSchema) }),
+      annotations: READ,
+      handle: async ({ available }) => {
+        const list = listFilaments(rt, { available });
+        return {
+          filaments: list.map(filamentJson),
+          guidance: [
+            list.length === 0 && available === undefined
+              ? "No filaments yet: the customer's page shows no pickers, only the comment. create_filament adds the first."
+              : `The customer's pickers offer the available ones in this order (${list.filter((f) => f.available).length} of these).`,
+          ],
+        };
+      },
+    }),
+    defineTool({
+      name: "create_filament",
+      description: "Add a filament to the end of the operator's list; it is offered to customers unless available is false.",
+      input: filamentInputSchema,
+      output: filamentSchema,
+      annotations: WRITE,
+      handle: async (input) => {
+        const f = createFilament(rt, input as FilamentInput);
+        if (!f.ok) return refused(f);
+        return {
+          ...filamentJson(f.value),
+          guidance: [f.value.available ? "Added; customers can pick it on their next visit." : "Added, not offered (available: false)."],
+        };
+      },
+    }),
+    defineTool({
+      name: "update_filament",
+      description: "Change a filament; only what is given changes. available: false stops offering it without deleting it; position moves it in the picker.",
+      input: filamentPatchSchema.extend({ id: z.string().min(1).describe("The filament's id (list_filaments).") }),
+      output: filamentSchema,
+      annotations: WRITE,
+      handle: async ({ id, ...patch }) => {
+        const f = updateFilament(rt, id, patch);
+        if (!f.ok) return refused(f);
+        return {
+          ...filamentJson(f.value),
+          guidance: [
+            f.value.available ? "Changed; customers see it on their next visit." : "Changed; it is no longer offered to customers, and stays in the list.",
+          ],
+        };
+      },
+    }),
+    defineTool({
+      name: "delete_filament",
+      description:
+        "Delete a filament. Feedback that named it keeps its name, material and colour. To stop offering it but keep it, update_filament with available: false instead.",
+      input: z.object({ id: z.string().min(1).describe("The filament's id (list_filaments).") }),
+      output: z.object({ id: z.string() }),
+      annotations: DELETE,
+      handle: async ({ id }) => {
+        const d = deleteFilament(rt, id);
+        if (!d.ok) return refused(d);
+        return { ...d.value, guidance: ["Deleted; customers can't pick it any more."] };
+      },
+    }),
+    // Feedback
+    defineTool({
+      name: "list_feedback",
+      description:
+        "Customers' feedback on their models' versions, newest first: a comment and colour wishes (a filament per part). Filter by customer, model or unseen.",
+      input: feedbackFilterSchema,
+      output: z.object({ feedback: z.array(feedbackSchema) }),
+      annotations: READ,
+      handle: async (filter) => {
+        const list = listFeedback(rt, filter);
+        const unseen = list.filter((f) => !f.seenAt).length;
+        return {
+          feedback: list.map((f) => feedbackJson(rt.config.publicUrl, f)),
+          guidance: [
+            list.length === 0
+              ? "No feedback here."
+              : unseen > 0
+                ? `${unseen} not seen yet; mark_feedback_seen marks them once dealt with (opening the model in the web app does too).`
+                : "All seen.",
+          ],
+        };
+      },
+    }),
+    defineTool({
+      name: "mark_feedback_seen",
+      description: "Mark feedback as seen, as opening its model in the web app does; already seen stays as it was.",
+      input: markSeenSchema,
+      output: z.object({ marked: z.number() }),
+      annotations: WRITE,
+      handle: async ({ ids }) => {
+        const r = markFeedbackSeen(rt, ids);
+        if (!r.ok) return refused(r);
+        return { ...r.value, guidance: [`${r.value.marked} marked seen; the web app's start page counts only the rest.`] };
       },
     }),
     // Tokens

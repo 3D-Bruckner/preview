@@ -3,7 +3,12 @@
 import { mcpRoute, type McpContext, type Who } from "next-app-kit/mcp";
 import { callTool, signedInCookie } from "next-app-kit/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { join } from "node:path";
+import { createCustomer } from "./customers";
+import { addVersion } from "./files";
 import { MCP_INSTRUCTIONS, mcpContext } from "./mcp";
+import { createModel } from "./models";
+import type { Outcome } from "./outcome";
 import { OWNER, testRuntime, type TestRuntime } from "./testing/runtime";
 
 let rt: TestRuntime;
@@ -177,3 +182,98 @@ describe("models", () => {
     expect(await refusal("list_versions", { modelId: "nope" }, me)).toMatch(/No model/);
   });
 });
+
+describe("versions", () => {
+  it("reread_facts reads a version's 3MF again and says what it found", async () => {
+    const me = await owner();
+    const c = value(createCustomer(rt, { name: "A" }));
+    const m = value(createModel(rt, { customerId: c.id, title: "Spulenhalter" }));
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    const v = value(await addVersion(rt, m.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    const r = await tool<{ parts: number }>("reread_facts", { version_id: v.id }, me);
+    expect(r.parts).toBe(3);
+    expect(said(r)).toMatch(/3 parts/);
+    expect(await refusal("reread_facts", { version_id: "nope" }, me)).toMatch(/nope/);
+  });
+
+  it("list_versions answers each version's print figures and where its slicing stands; reslice_version asks again", async () => {
+    rt.store.close();
+    rt = testRuntime({ PREVIEW_SLICER_URL: "https://slicing.test" });
+    ctx = await mcpContext(rt);
+    const me = await owner();
+    const c = value(createCustomer(rt, { name: "A" }));
+    const m = value(createModel(rt, { customerId: c.id, title: "Spulenhalter" }));
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    const sliced = value(await addVersion(rt, m.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    const plain = value(await addVersion(rt, m.id, { threemf: fixture("ramp.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    rt.store.putSliceJob(plain.id, "2026-11-28T10:00:00.000Z");
+    rt.store.updateSliceJob(plain.id, { state: "failed", reason: "off_plate" });
+    const r = await tool<{ versions: { id: string; figures: unknown; slicing: string | null; slicing_error: string | null }[] }>(
+      "list_versions",
+      { modelId: m.id },
+      me,
+    );
+    expect(r.versions.find((v) => v.id === sliced.id)).toMatchObject({
+      figures: { source: "file", seconds: 5400, grams: 29.75 },
+      slicing: null,
+      slicing_error: null,
+    });
+    expect(r.versions.find((v) => v.id === plain.id)).toMatchObject({ figures: null, slicing: "failed", slicing_error: "off_plate" });
+    const again = await tool<{ slicing: string }>("reslice_version", { version_id: plain.id }, me);
+    expect(again.slicing).toBe("pending");
+    expect(said(again)).toMatch(/slic/i);
+    expect(await refusal("reslice_version", { version_id: sliced.id }, me)).toMatch(/own figures/);
+  });
+});
+
+describe("filaments", () => {
+  it("create_filament, list_filaments, update_filament and delete_filament keep the operator's list", async () => {
+    const me = await owner();
+    const empty = await tool<{ filaments: unknown[] }>("list_filaments", {}, me);
+    expect(empty.filaments).toEqual([]);
+    expect(said(empty)).toMatch(/no pickers/i);
+    const g = await tool<{ id: string; color: string; available: boolean }>("create_filament", { name: "Bambu Grün", material: "PLA", color: "#00AE42" }, me);
+    expect(g).toMatchObject({ color: "#00ae42", available: true });
+    await tool("create_filament", { name: "Weiß", material: "PETG", color: "#ffffff", available: false }, me);
+    const offered = await tool<{ filaments: { name: string }[] }>("list_filaments", { available: true }, me);
+    expect(offered.filaments.map((f) => f.name)).toEqual(["Bambu Grün"]);
+    expect(await refusal("create_filament", { name: "Rot", material: "PLA", color: "red" }, me)).toMatch(/#rrggbb/);
+    const off = await tool<{ available: boolean }>("update_filament", { id: g.id, available: false }, me);
+    expect(off.available).toBe(false);
+    expect(said(off)).toMatch(/no longer offered/i);
+    expect(await tool<{ id: string }>("delete_filament", { id: g.id }, me)).toMatchObject({ id: g.id });
+    expect(await refusal("delete_filament", { id: g.id }, me)).toMatch(/No filament/);
+  });
+});
+
+describe("feedback", () => {
+  it("list_feedback answers the customer's feedback, newest first; mark_feedback_seen marks it", async () => {
+    const me = await owner();
+    const c = value(createCustomer(rt, { name: "Anna" }));
+    const m = value(createModel(rt, { customerId: c.id, title: "Spulenhalter" }));
+    await addVersion(rt, m.id, {
+      threemf: { path: join(import.meta.dirname, "fixtures", "ramp.3mf") },
+      preview: { path: join(import.meta.dirname, "fixtures", "preview.png") },
+      drawings: [],
+    });
+    const { sendFeedback } = await import("./feedback");
+    const f = value(await sendFeedback(rt, c.link!, { modelId: m.id, versionNumber: 1, comment: "Bitte in Grün.", wishes: [] }));
+    const list = await tool<{
+      feedback: { id: string; comment: string; version_number: number; model_title: string; seen_at: string | null; admin_url: string }[];
+    }>("list_feedback", { unseen: true }, me);
+    expect(list.feedback).toEqual([
+      expect.objectContaining({ id: f.id, comment: "Bitte in Grün.", version_number: 1, model_title: "Spulenhalter", seen_at: null }),
+    ]);
+    expect(list.feedback[0]!.admin_url).toBe(`${BASE}/models/${m.id}`);
+    expect(said(list)).toMatch(/mark_feedback_seen/);
+    const seen = await tool<{ marked: number }>("mark_feedback_seen", { ids: [f.id] }, me);
+    expect(seen.marked).toBe(1);
+    expect((await tool<{ feedback: unknown[] }>("list_feedback", { unseen: true }, me)).feedback).toEqual([]);
+    expect(await refusal("mark_feedback_seen", { ids: ["nope"] }, me)).toMatch(/No such feedback/);
+  });
+});
+
+function value<T>(o: Outcome<T>): T {
+  if (!o.ok) throw new Error(`expected ok, got ${o.reason}: ${o.message}`);
+  return o.value;
+}

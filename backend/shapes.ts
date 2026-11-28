@@ -1,7 +1,9 @@
-// What REST and MCP answer and take alike: customers, models, versions and API tokens. Written once here, so /api/v1 (rest.ts) and /mcp
+// What REST and MCP answer and take alike: customers, models, versions, filaments, feedback and API tokens. Written once here, so /api/v1 (rest.ts) and /mcp
 // (mcp.ts) can't drift apart.
 import * as z from "zod";
 import { getCustomer, type Customer } from "./customers";
+import type { Feedback } from "./feedback";
+import { FILAMENT_MATERIAL_MAX, FILAMENT_NAME_MAX, type Filament } from "./filaments";
 import type { Model } from "./models";
 import type { Runtime } from "./runtime";
 import type { Version } from "./versions";
@@ -68,14 +70,32 @@ export const modelSchema = z.object({
   updated_at: z.string(),
 });
 
+export const figuresSchema = z.object({
+  source: z.enum(["file", "slicer"]).describe("file: Bambu Studio's own slice in the 3MF; slicer: the slicing service's, on its fixed profiles."),
+  seconds: z.number().int().describe("Print time in seconds."),
+  grams: z.number().describe("Weight in grams, the whole model."),
+  filaments: z.array(z.object({ slot: z.number().int(), type: z.string().nullable(), color: z.string().nullable().describe("#rrggbb"), grams: z.number() })),
+});
+
 export const versionSchema = z.object({
   id: ID,
   model_id: ID,
   number: z.number().int(),
   note: z.string().nullable(),
   created_at: z.string(),
+  parts: z.number().int().nullable().describe("How many parts its 3MF has; null until its 3MF has been read (reread_facts)."),
   drawings: z.array(z.object({ id: ID, kind: z.enum(["png", "svg", "pdf"]) })),
+  figures: figuresSchema.nullable().describe("What printing the whole model takes; null while there are none (see slicing)."),
+  slicing: z
+    .enum(["pending", "failed"])
+    .nullable()
+    .describe("pending: the slicing service will answer for a 3MF without figures of its own; failed: it couldn't (slicing_error); null otherwise."),
+  slicing_error: z.string().nullable().describe("Why the slicing failed (the service's reason, such as off_plate or too_large)."),
 });
+
+export const sliceSchema = z.object({ slicing: z.literal("pending") });
+
+export const factsReadSchema = z.object({ parts: z.number().int().describe("How many parts the version's 3MF has.") });
 
 export const customerJson = (base: string, c: Customer): z.infer<typeof customerSchema> => ({
   id: c.id,
@@ -105,7 +125,11 @@ export const versionJson = (v: Version): z.infer<typeof versionSchema> => ({
   number: v.number,
   note: v.note,
   created_at: v.createdAt,
+  parts: v.parts,
   drawings: v.drawings,
+  figures: v.figures,
+  slicing: v.slicing,
+  slicing_error: v.reason,
 });
 
 /** The model as answered: its customer's link decides its own. */
@@ -114,3 +138,91 @@ export function modelOf(rt: Runtime, m: Model): z.infer<typeof modelSchema> {
   if (!customer.ok) throw new Error(`model ${m.id} has no customer ${m.customerId}`);
   return modelJson(rt.config.publicUrl, m, customer.value);
 }
+
+// ---- Filaments
+
+export const filamentInputSchema = z.object({
+  name: z.string().trim().min(1).max(FILAMENT_NAME_MAX).describe('What the customer sees in the picker, e.g. "Bambu Grün".'),
+  material: z
+    .string()
+    .trim()
+    .min(1)
+    .max(FILAMENT_MATERIAL_MAX)
+    .describe("As the slicer writes it, e.g. PLA or PETG; with the colour it names a file's filament."),
+  color: z.string().describe("#rrggbb, e.g. #00ae42."),
+  available: z.boolean().optional().describe("Whether the customer can pick it (default true); false keeps it without offering it."),
+});
+
+export const filamentPatchSchema = filamentInputSchema.partial().extend({
+  position: z.number().int().min(1).optional().describe("Its place in the picker, from 1; equal places keep the order they were made in."),
+});
+
+export const filamentSchema = z.object({
+  id: ID,
+  name: z.string(),
+  material: z.string(),
+  color: z.string(),
+  available: z.boolean(),
+  position: z.number(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const filamentJson = (f: Filament): z.infer<typeof filamentSchema> => ({
+  id: f.id,
+  name: f.name,
+  material: f.material,
+  color: f.color,
+  available: f.available,
+  position: f.position,
+  created_at: f.createdAt,
+  updated_at: f.updatedAt,
+});
+
+// ---- Feedback
+
+export const feedbackFilterSchema = z.object({
+  customerId: ID.optional().describe("Only this customer's (list_customers)."),
+  modelId: ID.optional().describe("Only on this model's versions (list_models)."),
+  unseen: z.boolean().optional().describe("true: only what hasn't been seen in the web app or marked with mark_feedback_seen."),
+});
+
+export const feedbackSchema = z.object({
+  id: ID,
+  customer_id: ID,
+  customer_name: z.string(),
+  model_id: ID,
+  model_title: z.string(),
+  version_id: ID,
+  version_number: z.number(),
+  comment: z.string().nullable(),
+  wishes: z
+    .array(
+      z.object({
+        part: z.string().describe("The part's key in the version's facts."),
+        part_name: z.string().nullable(),
+        filament: z.object({ id: ID, name: z.string(), material: z.string(), color: z.string() }).describe("As it was when the wish was sent."),
+      }),
+    )
+    .describe("A filament per part the customer would like."),
+  created_at: z.string(),
+  seen_at: z.string().nullable().describe("When it was seen in the web app; null: new."),
+  admin_url: z.string().describe("The model's page in the web app, where the feedback is listed under its version."),
+});
+
+export const feedbackJson = (publicUrl: string, f: Feedback): z.infer<typeof feedbackSchema> => ({
+  id: f.id,
+  customer_id: f.customerId,
+  customer_name: f.customerName,
+  model_id: f.modelId,
+  model_title: f.modelTitle,
+  version_id: f.versionId,
+  version_number: f.versionNumber,
+  comment: f.comment,
+  wishes: f.wishes.map((w) => ({ part: w.part, part_name: w.partName, filament: w.filament })),
+  created_at: f.createdAt,
+  seen_at: f.seenAt,
+  admin_url: `${publicUrl}/models/${f.modelId}`,
+});
+
+export const markSeenSchema = z.object({ ids: z.array(ID).min(1).max(100).describe("The feedback's ids (list_feedback).") });

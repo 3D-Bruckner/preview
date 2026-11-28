@@ -17,6 +17,11 @@ export {
   type CustomerVersionView,
   type CustomerView,
 } from "./customerview";
+export { fillMissingFacts } from "./facts";
+export { resliceVersion } from "./figures";
+export { listFeedback, markFeedbackSeen, sendFeedback, unseenFeedback, type Feedback } from "./feedback";
+export { createFilament, deleteFilament, filamentName, listFilaments, updateFilament, type Filament } from "./filaments";
+export { startSliceWorker } from "./slicer";
 export { addVersion, UPLOAD_TYPES, type UploadedFile } from "./files";
 export { healthResponse } from "./health";
 export { log } from "./log";

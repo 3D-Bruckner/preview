@@ -28,6 +28,8 @@ export interface VersionsTable {
   threemf_file: string;
   preview_file: string;
   created_at: string;
+  /** JSON of backend/threemf's Facts; null until read. */
+  facts: string | null;
 }
 
 export interface DrawingsTable {
@@ -38,14 +40,56 @@ export interface DrawingsTable {
   position: number;
 }
 
+export interface SliceJobsTable {
+  version_id: string;
+  state: "pending" | "done" | "failed";
+  attempts: number;
+  /** When a pending job is due (ISO time). */
+  next_at: string;
+  reason: string | null;
+  /** JSON of backend/threemf's FactsFigures, once done. */
+  figures: string | null;
+  updated_at: string;
+}
+
+export interface FilamentsTable {
+  id: string;
+  name: string;
+  material: string;
+  /** #rrggbb, lower case. */
+  color: string;
+  /** 1: the customer can pick it; 0: kept, not offered. */
+  available: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeedbackTable {
+  id: string;
+  version_id: string;
+  customer_id: string;
+  comment: string | null;
+  /** JSON of backend/feedback.ts's Wish[]. */
+  wishes: string;
+  created_at: string;
+  seen_at: string | null;
+}
+
 export type DB = {
   customers: CustomersTable;
   models: ModelsTable;
   versions: VersionsTable;
   drawings: DrawingsTable;
+  slice_jobs: SliceJobsTable;
+  filaments: FilamentsTable;
+  feedback: FeedbackTable;
 };
 
 export type CustomerRow = CustomersTable;
 export type ModelRow = ModelsTable;
 export type VersionRow = VersionsTable;
 export type DrawingRow = DrawingsTable;
+export type SliceJobRow = SliceJobsTable;
+export type FilamentRow = FilamentsTable;
+export type FeedbackRow = FeedbackTable;

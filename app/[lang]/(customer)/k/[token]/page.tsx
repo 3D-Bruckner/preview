@@ -68,6 +68,12 @@ export default async function CustomerPage({ params }: PageProps<"/[lang]/k/[tok
                       {t.version(m.latest.number)}
                       {" · "}
                       <time dateTime={m.latest.createdAt}>{formatDay(lang, m.latest.createdAt)}</time>
+                      {m.latest.parts ? (
+                        <>
+                          {" · "}
+                          {t.partCount(m.latest.parts)}
+                        </>
+                      ) : null}
                     </span>
                     {m.latest.note && (
                       <span className="mt-2.5 block border-t border-border pt-2.5 text-sm">

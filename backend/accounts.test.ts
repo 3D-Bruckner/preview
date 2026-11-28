@@ -8,6 +8,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { defineTool, mcpRoute, type McpContext } from "next-app-kit/mcp";
 import { authHandler, wellKnownHandlers } from "next-app-kit/next";
 import { restRoute, type Op } from "next-app-kit/rest";
+import { signInMethods } from "next-app-kit/signin";
 import { SignInRefused, signedInCookie } from "next-app-kit/testing";
 import { createApiToken } from "next-app-kit/tokens";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -283,6 +284,34 @@ describe("who may sign in", () => {
     } finally {
       rt.store.close();
     }
+  });
+
+  describe("PREVIEW_SIGNIN_EMAIL", () => {
+    const base = { PUBLIC_URL: "https://preview.example.com", PREVIEW_SECRET: "s".repeat(32), PREVIEW_SMTP_URL: "smtp://u:p@smtp.example.org:587" };
+    const authentik = {
+      PREVIEW_OIDC_AUTHENTIK_CLIENT_ID: "preview",
+      PREVIEW_OIDC_AUTHENTIK_CLIENT_SECRET: "secret",
+      PREVIEW_OIDC_AUTHENTIK_ISSUER: "https://auth.example.org/application/o/preview/",
+    };
+    const settings = (env: Record<string, string>) => signInSettings(env, process.env.DATA_DIR!, log);
+
+    it("offers the mailed code wherever SMTP is set, by default", () => {
+      expect(signInMethods(settings({ ...base, ...authentik })).email).toBe(true);
+    });
+
+    it("off: no mailed code although SMTP is set (it still sends the app's own mail), the providers stay", () => {
+      const s = settings({ ...base, ...authentik, PREVIEW_SIGNIN_EMAIL: "off" });
+      expect(s.smtp).toBeNull();
+      expect(signInMethods(s)).toMatchObject({ email: false, providers: [expect.objectContaining({ id: "authentik" })] });
+    });
+
+    it("off with no provider left is refused, as no way in at all", () => {
+      expect(() => settings({ ...base, PREVIEW_SIGNIN_EMAIL: "off" })).toThrow(/PREVIEW_SIGNIN_EMAIL/);
+    });
+
+    it("refuses anything but on or off", () => {
+      expect(() => settings({ ...base, ...authentik, PREVIEW_SIGNIN_EMAIL: "no" })).toThrow(/PREVIEW_SIGNIN_EMAIL must be on or off/);
+    });
   });
 
   it("names preview's sign-in: auth.sqlite in DATA_DIR, the app's name, preview's prefix", async () => {

@@ -2,14 +2,28 @@
 // customerByToken, the one gate (conventions: architecture/one-gate-for-every-read), and reaches a model, a version or a file only through
 // that customer: an id from the URL that is not theirs is answered like an unknown token, with null (the page's 404).
 import { customerByToken, type Customer, type Language } from "./customers";
+import { factsOf } from "./facts";
 import { versionFile } from "./files";
+import { feedbackOfVersions, type Wish } from "./feedback";
+import { figuresOf, type Figures } from "./figures";
+import { filamentName, listFilaments, type Filament } from "./filaments";
+import { emptyFacts, type Facts } from "./threemf";
 import type { Runtime } from "./runtime";
 
 export type CustomerView = {
   customer: { name: string };
   /** The customer's models that have a version, newest first; a model with none has nothing to show yet. */
-  models: { id: string; title: string; description: string | null; latest: { number: number; createdAt: string; note: string | null; previewUrl: string } }[];
+  models: {
+    id: string;
+    title: string;
+    description: string | null;
+    /** `parts`: how many its 3MF has; null until its facts are read. */
+    latest: { number: number; createdAt: string; note: string | null; previewUrl: string; parts: number | null };
+  }[];
 };
+
+/** Print figures whose filaments carry the operator's name for them (null when no filament of the list matches). */
+export type NamedFigures = Omit<Figures, "filaments"> & { filaments: (Figures["filaments"][number] & { name: string | null })[] };
 
 export type CustomerVersionView = {
   number: number;
@@ -17,10 +31,28 @@ export type CustomerVersionView = {
   createdAt: string;
   threemfUrl: string;
   previewUrl: string;
+  /** Its parts and filament slots; empty (shown as a whole, no parts list) until read. */
+  facts: Facts;
+  /**
+   * What printing it takes, for the whole model, each filament named from the operator's list when its colour and material match one;
+   * `printPending`: the slicer will answer (a failure shows nothing to the customer).
+   */
+  figures: NamedFigures | null;
+  printPending: boolean;
   drawings: { url: string; kind: "png" | "svg" | "pdf" }[];
+  /** What the customer sent back on this version, newest first. */
+  feedback: { createdAt: string; comment: string | null; wishes: Wish[] }[];
 };
 
-export type CustomerModelView = { model: { id: string; title: string; description: string | null }; versions: CustomerVersionView[] };
+/** A filament the customer can pick for a part. */
+export type CustomerFilament = Pick<Filament, "id" | "name" | "material" | "color">;
+
+export type CustomerModelView = {
+  model: { id: string; title: string; description: string | null };
+  versions: CustomerVersionView[];
+  /** The operator's filaments on offer, in picker order; none: no pickers, only the comment. */
+  filaments: CustomerFilament[];
+};
 
 /** Where a version's files are served: app/k/[token]/files/[version]/[file], outside the proxy. */
 const filesUrl = (token: string, versionId: string) => `/k/${token}/files/${versionId}`;
@@ -34,15 +66,26 @@ function modelOf(rt: Runtime, customer: Customer, modelId: string) {
 function versionsOf(rt: Runtime, token: string, modelId: string): CustomerVersionView[] {
   const rows = rt.store.versionsOfModel(modelId);
   const drawings = rt.store.drawingsOfVersions(rows.map((v) => v.id));
+  const jobs = new Map(rt.store.sliceJobsOf(rows.map((v) => v.id)).map((j) => [j.version_id, j]));
+  const feedback = feedbackOfVersions(
+    rt,
+    rows.map((v) => v.id),
+  );
+  const palette = listFilaments(rt);
   return rows.map((v) => {
     const base = filesUrl(token, v.id);
+    const print = figuresOf(rt, v, jobs.get(v.id));
     return {
       number: v.number,
       note: v.note,
       createdAt: v.created_at,
       threemfUrl: `${base}/model.3mf`,
       previewUrl: `${base}/preview.png`,
+      facts: factsOf(v) ?? emptyFacts(),
+      figures: print.figures && { ...print.figures, filaments: print.figures.filaments.map((f) => ({ ...f, name: filamentName(palette, f) })) },
+      printPending: print.slicing === "pending",
       drawings: drawings.filter((d) => d.version_id === v.id).map((d) => ({ url: `${base}/${d.id}.${d.kind}`, kind: d.kind })),
+      feedback: feedback.filter((f) => f.versionId === v.id).map((f) => ({ createdAt: f.createdAt, comment: f.comment, wishes: f.wishes })),
     };
   });
 }
@@ -59,7 +102,13 @@ export function customerView(rt: Runtime, token: string): CustomerView | null {
       id: m.id,
       title: m.title,
       description: m.description,
-      latest: { number: latest.number, createdAt: latest.created_at, note: latest.note, previewUrl: `${filesUrl(token, latest.id)}/preview.png` },
+      latest: {
+        number: latest.number,
+        createdAt: latest.created_at,
+        note: latest.note,
+        previewUrl: `${filesUrl(token, latest.id)}/preview.png`,
+        parts: factsOf(latest)?.parts.length ?? null,
+      },
     });
   }
   return { customer: { name: customer.name }, models };
@@ -73,7 +122,8 @@ export function customerModel(rt: Runtime, token: string, modelId: string): Cust
   if (!model) return null;
   const versions = versionsOf(rt, token, model.id);
   if (versions.length === 0) return null;
-  return { model: { id: model.id, title: model.title, description: model.description }, versions };
+  const filaments = listFilaments(rt, { available: true }).map((f) => ({ id: f.id, name: f.name, material: f.material, color: f.color }));
+  return { model: { id: model.id, title: model.title, description: model.description }, versions, filaments };
 }
 
 /**
