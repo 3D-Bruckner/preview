@@ -254,6 +254,22 @@ describe("the view's parts and camera", () => {
     expect(on.onRotating).toHaveBeenLastCalledWith(false);
   });
 
+  it("recolours a part in a picked filament, every placement, and null puts the file's colour back", () => {
+    const { view } = openPlates();
+    const colour = (key: string) => meshesOf(view, key).map((m) => (m.material as MeshStandardMaterial).color.getHexString());
+    expect(colour("4:0")).toEqual(["ffffff"]);
+    view.setColour("4:0", "#D62828");
+    expect(colour("4:0")).toEqual(["d62828"]);
+    expect(colour("4:1")).toEqual(["00ae42"]);
+    view.setColour("4:0", null);
+    expect(colour("4:0")).toEqual(["ffffff"]);
+    // A highlight on a recoloured part still lights it up, and clears back to the picked colour.
+    view.setColour("2:0", "#123456");
+    view.highlight("2:0");
+    view.highlight(null);
+    expect(colour("2:0")).toEqual(["123456"]);
+  });
+
   it("highlights a part's meshes in the accent, and null clears it", () => {
     const { view } = openPlates();
     view.highlight("2:0");

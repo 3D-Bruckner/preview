@@ -52,6 +52,8 @@ export interface View {
   setHidden(keys: ReadonlySet<string>): void;
   /** Lights that part up in the accent (null: none). */
   highlight(key: string | null): void;
+  /** Paints that part (every placement) in a filament's colour, #rrggbb; null: the file's own colour again. */
+  setColour(key: string, hex: string | null): void;
   /** What is shown, measured. */
   size(): Size;
   /** The model's meshes, each named by its part's key ("" when the facts have no parts). */
@@ -366,6 +368,30 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
     setHidden(keys) {
       hidden = keys;
       shown();
+    },
+    setColour(key, hex) {
+      for (const m of meshes) {
+        if (m.name !== key) continue;
+        for (const mat of [m.material].flat() as MeshStandardMaterial[]) {
+          // The file's own look, kept the first time the part is painted.
+          const own = (mat.userData.own ??= { color: mat.color.getHex(), map: mat.map, vertexColors: mat.vertexColors }) as {
+            color: number;
+            map: Texture | null;
+            vertexColors: boolean;
+          };
+          if (hex === null) {
+            mat.color.setHex(own.color);
+            mat.map = own.map;
+            mat.vertexColors = own.vertexColors;
+          } else {
+            mat.color.set(hex);
+            mat.map = null;
+            mat.vertexColors = false;
+          }
+          mat.needsUpdate = true;
+        }
+      }
+      dirty = true;
     },
     highlight(key) {
       for (const m of meshes)

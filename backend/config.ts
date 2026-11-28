@@ -35,6 +35,8 @@ export type Config = {
   allowedEmails: string[];
   smtpUrl?: string;
   smtpFrom?: string;
+  /** PREVIEW_FEEDBACK_EMAIL: where a customer's feedback is mailed (through PREVIEW_SMTP_*); none: no mail, the web app shows it. */
+  feedbackEmail?: string;
   /** PREVIEW_MAX_UPLOAD_MB: the largest upload a request may send, in megabytes (default 100). */
   maxUploadMb: number;
   /** Who runs this instance, as its pages show it. */
@@ -67,6 +69,7 @@ const MAX_UPLOAD = "PREVIEW_MAX_UPLOAD_MB must be a whole number of megabytes, a
 const BRAND_NAME = "PREVIEW_BRAND_NAME must be at most 80 characters";
 const ACCENT = "PREVIEW_ACCENT_COLOR must be a hex colour such as #1d4ed8";
 const MATERIAL = "PREVIEW_SLICER_MATERIAL must be PLA or PETG";
+const FEEDBACK_EMAIL = "PREVIEW_FEEDBACK_EMAIL must be one email address";
 const LOGO = "PREVIEW_LOGO must be an .svg or .png file inside DATA_DIR, such as brand/logo.svg";
 
 const schema = z.object({
@@ -77,6 +80,7 @@ const schema = z.object({
   PREVIEW_ALLOWED_EMAILS: optional,
   PREVIEW_SMTP_URL: optional,
   PREVIEW_SMTP_FROM: optional,
+  PREVIEW_FEEDBACK_EMAIL: z.preprocess(blank, z.email({ error: FEEDBACK_EMAIL }).optional()),
   PREVIEW_MAX_UPLOAD_MB: z.preprocess(blank, z.coerce.number({ error: MAX_UPLOAD }).int(MAX_UPLOAD).min(1, MAX_UPLOAD).optional()),
   PREVIEW_BRAND_NAME: z.preprocess(blank, z.string().trim().max(80, BRAND_NAME).optional()),
   PREVIEW_BRAND_URL: optionalUrl("PREVIEW_BRAND_URL"),
@@ -108,7 +112,7 @@ const schema = z.object({
 });
 
 /** Who reads a variable that isn't loadConfig's own. */
-type ReadBy = "next-app-kit" | "backend/log.ts" | "Node" | "docker-entrypoint.mjs";
+type ReadBy = "next-app-kit" | "backend/accounts.ts" | "backend/log.ts" | "Node" | "docker-entrypoint.mjs";
 
 /**
  * Every variable preview reads: loadConfig's (the schema's keys) and the rest, each with who reads it. `<NAME>` stands for a sign-in
@@ -124,6 +128,7 @@ export const VARIABLES: Record<string, "loadConfig" | ReadBy> = {
   "PREVIEW_OIDC_<NAME>_CLIENT_SECRET": "next-app-kit",
   "PREVIEW_OIDC_<NAME>_ISSUER": "next-app-kit",
   "PREVIEW_OIDC_<NAME>_LABEL": "next-app-kit",
+  PREVIEW_SIGNIN_EMAIL: "backend/accounts.ts",
   PREVIEW_E2E: "next-app-kit",
   PORT: "next-app-kit",
   PREVIEW_LOG_LEVEL: "backend/log.ts",
@@ -172,6 +177,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   };
   if (e.PREVIEW_SMTP_URL) config.smtpUrl = e.PREVIEW_SMTP_URL;
   if (e.PREVIEW_SMTP_FROM) config.smtpFrom = e.PREVIEW_SMTP_FROM;
+  if (e.PREVIEW_FEEDBACK_EMAIL) config.feedbackEmail = e.PREVIEW_FEEDBACK_EMAIL;
   if (e.PREVIEW_DEV_USER) config.devUser = e.PREVIEW_DEV_USER;
   if (e.PREVIEW_SLICER_URL) {
     config.slicer = { url: e.PREVIEW_SLICER_URL.replace(/\/+$/, ""), material: e.PREVIEW_SLICER_MATERIAL ?? "PLA" };

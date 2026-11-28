@@ -5,6 +5,7 @@ import { Card } from "@/components/Card";
 import { useCopy } from "@/components/CopyProvider";
 import { FocusIcon, HiddenIcon, ShownIcon } from "@/components/icons";
 import { GREY_HEX } from "@/components/viewer/colours";
+import { useWishes } from "@/components/Wishes";
 
 /** Each part's name as the list shows it: its own, or "Teil i"; a name several parts share is numbered (Spule 1, Spule 2). */
 export function usePartLabels(facts: Facts): ReadonlyMap<string, string> {
@@ -38,9 +39,14 @@ type Props = {
 
 const toggle = "inline-flex size-[30px] shrink-0 items-center justify-center rounded-[4px] text-muted hover:bg-surface hover:text-ink aria-pressed:text-ink";
 
-/** The Teile card: per part its filament's swatch, name and filament, a button that shows it alone and an eye that hides it. */
+/**
+ * The Teile card: per part its filament's swatch, name and filament, a button that shows it alone and an eye that hides it; with the
+ * operator's filaments on offer, a picker of them too ("wie im Entwurf": the file's own), whose pick the swatch and the view show.
+ */
 export function PartsList({ facts, labels, focused, hidden, onFocus, onToggle, onHover }: Props) {
   const t = useCopy().customer;
+  const wishes = useWishes();
+  const colourOf = new Map(wishes.filaments.map((f) => [f.id, f.color]));
   return (
     <Card id="parts" title={t.parts.title} aside={facts.parts.length}>
       <ul className="divide-y divide-border">
@@ -49,6 +55,7 @@ export function PartsList({ facts, labels, focused, hidden, onFocus, onToggle, o
           const filament = [slot?.type, slot?.color].filter(Boolean).join(" · ") || t.parts.unknownFilament;
           const name = labels.get(p.key)!;
           const off = hidden.has(p.key);
+          const pick = wishes.picked.get(p.key) ?? "";
           return (
             <li
               key={p.key}
@@ -63,11 +70,26 @@ export function PartsList({ facts, labels, focused, hidden, onFocus, onToggle, o
               <span
                 aria-hidden="true"
                 className={`size-[18px] shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgb(127_127_127/0.45)] ${off ? "opacity-45" : ""}`}
-                style={{ background: slot?.color ?? GREY_HEX }}
+                style={{ background: colourOf.get(pick) ?? slot?.color ?? GREY_HEX }}
               />
               <span className={`min-w-0 flex-1 ${off ? "opacity-45" : ""}`}>
                 <span className="block truncate text-sm font-semibold">{name}</span>
                 <span className="block truncate text-[0.8125rem] text-muted">{filament}</span>
+                {wishes.filaments.length > 0 && (
+                  <select
+                    aria-label={t.parts.colour(name)}
+                    value={pick}
+                    onChange={(e) => wishes.pick(p.key, e.target.value || null)}
+                    className="mt-1 block w-full max-w-56 rounded-[4px] border border-line bg-paper px-2 py-1 text-[0.8125rem] text-ink"
+                  >
+                    <option value="">{t.parts.asDrafted}</option>
+                    {wishes.filaments.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {t.parts.option(f.name, f.material)}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </span>
               <button type="button" aria-pressed={focused === p.key} aria-label={t.parts.focus(name)} onClick={() => onFocus(p.key)} className={toggle}>
                 <FocusIcon aria-hidden="true" className="size-4" />

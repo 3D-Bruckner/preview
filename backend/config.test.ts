@@ -103,6 +103,12 @@ describe("loadConfig", () => {
     expect(() => loadConfig(env({ PREVIEW_SLICER_URL: "slicing" }))).toThrow("PREVIEW_SLICER_URL must be an http(s) URL");
   });
 
+  it("takes the address feedback is mailed to, and refuses one that isn't an address", () => {
+    expect(loadConfig(env({})).feedbackEmail).toBeUndefined();
+    expect(loadConfig(env({ PREVIEW_FEEDBACK_EMAIL: "feedback@example.com" })).feedbackEmail).toBe("feedback@example.com");
+    expect(() => loadConfig(env({ PREVIEW_FEEDBACK_EMAIL: "feedback" }))).toThrow("PREVIEW_FEEDBACK_EMAIL must be one email address");
+  });
+
   it("takes every setting from the environment", () => {
     const c = loadConfig(
       env({

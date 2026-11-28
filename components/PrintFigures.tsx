@@ -3,13 +3,14 @@ import { copyFor } from "@/components/copy";
 import { formatGrams, hoursMinutes } from "@/components/format";
 import { RefreshWhilePending } from "@/components/RefreshWhilePending";
 import { GREY_HEX } from "@/components/viewer/colours";
-import type { Figures } from "@/backend/client";
+import type { NamedFigures } from "@/backend/client";
 
 /**
- * The Druck card of a model page's side panel: print time and weight of the whole model, and each filament's grams. While the slicer
+ * The Druck card of a model page's side panel: print time and weight of the whole model, and each filament's grams, named as the
+ * operator's list names it when one matches its colour and material exactly. While the slicer
  * works it out, a line that says so (and the page looks again by itself); without figures and nothing pending, no card.
  */
-export function PrintFigures({ lang, figures, pending }: { lang: string; figures: Figures | null; pending: boolean }) {
+export function PrintFigures({ lang, figures, pending }: { lang: string; figures: NamedFigures | null; pending: boolean }) {
   const t = copyFor(lang).customer.print;
   if (!figures && !pending) return null;
   if (!figures)
@@ -46,7 +47,7 @@ export function PrintFigures({ lang, figures, pending }: { lang: string; figures
                 className="size-[18px] shrink-0 rounded-full shadow-[inset_0_0_0_1px_rgb(127_127_127/0.45)]"
                 style={{ background: f.color ?? GREY_HEX }}
               />
-              <span className="min-w-0 flex-1 truncate">{[f.type, f.color].filter(Boolean).join(" · ") || t.unknownFilament}</span>
+              <span className="min-w-0 flex-1 truncate">{f.name ?? ([f.type, f.color].filter(Boolean).join(" · ") || t.unknownFilament)}</span>
               <span className="tabular text-muted">
                 {formatGrams(f.grams, lang)} {t.g}
               </span>

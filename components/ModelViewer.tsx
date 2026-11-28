@@ -17,12 +17,20 @@ type Props = {
   focused?: string | null;
   hidden?: ReadonlySet<string>;
   hovered?: string | null;
+  /** The filament colour picked per part (#rrggbb, by part key); a part not in it shows the file's colour. */
+  colours?: ReadonlyMap<string, string>;
   /** What is shown, measured (for the chip), and where the view reports it. */
   size?: Size | null;
   onSize?: (size: Size) => void;
 };
 
 const NONE: ReadonlySet<string> = new Set();
+const NO_COLOURS: ReadonlyMap<string, string> = new Map();
+
+/** Paints the parts whose picked colour changed from `before` to `after`, and gives the others back their own. */
+function paint(view: View, before: ReadonlyMap<string, string>, after: ReadonlyMap<string, string>) {
+  for (const key of new Set([...before.keys(), ...after.keys()])) if (before.get(key) !== after.get(key)) view.setColour(key, after.get(key) ?? null);
+}
 const DIRECTIONS: CameraDirection[] = ["iso", "top", "front", "side"];
 const tool =
   "inline-flex h-[30px] items-center justify-center rounded-[4px] text-sm hover:bg-surface aria-pressed:bg-surface aria-pressed:shadow-[inset_0_0_0_1px_var(--border)]";
@@ -39,7 +47,7 @@ export function ModelViewer(props: Props) {
   return <Viewer key={props.src} {...props} />;
 }
 
-function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = null, size = null, onSize }: Props) {
+function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = null, colours = NO_COLOURS, size = null, onSize }: Props) {
   const t = useCopy().customer;
   const lang = useLocale();
   const hydrated = useHydrated();
@@ -53,10 +61,12 @@ function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = nu
   const [direction, setDirection] = useState<CameraDirection | null>("iso");
   const [grid, setGrid] = useState(true);
   // What the view must show once it opens, when the visitor picked it while the 3MF was still loading.
-  const picked = useRef({ focused, hidden, hovered, onSize });
+  const picked = useRef({ focused, hidden, hovered, colours, onSize });
   useEffect(() => {
-    picked.current = { focused, hidden, hovered, onSize };
+    picked.current = { focused, hidden, hovered, colours, onSize };
   });
+  // The colours the view shows now, to paint only what changed.
+  const painted = useRef<ReadonlyMap<string, string>>(NO_COLOURS);
 
   useEffect(() => {
     const el = mount.current!;
@@ -83,6 +93,8 @@ function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = nu
         if (now.hidden.size) opened.setHidden(now.hidden);
         if (now.focused) opened.focus(now.focused);
         if (now.hovered) opened.highlight(now.hovered);
+        paint(opened, NO_COLOURS, now.colours);
+        painted.current = now.colours;
       } catch {
         if (!abort.signal.aborted) setState("error");
       }
@@ -102,6 +114,11 @@ function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = nu
   useEffect(() => view.current?.setHidden(hidden), [hidden]);
   useEffect(() => view.current?.focus(focused), [focused]);
   useEffect(() => view.current?.highlight(hovered), [hovered]);
+  useEffect(() => {
+    if (!view.current) return;
+    paint(view.current, painted.current, colours);
+    painted.current = colours;
+  }, [colours]);
 
   const ready = state === "ready";
   const turn = (dir: CameraDirection) => {

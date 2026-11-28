@@ -41,6 +41,14 @@ A 3MF that Bambu Studio has sliced carries its print time, weight and grams per 
 | `PREVIEW_SLICER_TOKEN`    | none    | Sent as `Authorization: Bearer`; the service's token lifts its hourly limit (10 files an hour per caller without). |
 | `PREVIEW_SLICER_MATERIAL` | `PLA`   | `PLA` or `PETG`: what a file is sliced in when its first part's filament is neither.                               |
 
+## Feedback
+
+A customer can send feedback on a version from their page: a comment (up to 2000 characters) and a colour wish per part, picked from the filaments the operator offers (settings, or `create_filament`). A customer may send 10 an hour and 50 a day. The web app lists it under the version; MCP and REST answer it with `list_feedback`.
+
+| Variable                 | Default | What it does                                                                                                                                                                          |
+| ------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PREVIEW_FEEDBACK_EMAIL` | none    | Where each feedback is mailed (in German: model, version, the wishes, the comment, a link into the web app), through `PREVIEW_SMTP_URL` and from `PREVIEW_SMTP_FROM`. Unset: no mail. |
+
 ## Sign-in (read by next-app-kit)
 
 next-app-kit's `signInFromEnv` reads these under the prefix `PREVIEW` (`backend/accounts.ts`). Some way in must exist: SMTP, a provider, or (in development) a dev user.
@@ -48,6 +56,7 @@ next-app-kit's `signInFromEnv` reads these under the prefix `PREVIEW` (`backend/
 | Variable                                                                                                                        | What it does                                                                                                                                                                                                                                                         |
 | ------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PREVIEW_SMTP_URL`, `PREVIEW_SMTP_FROM`                                                                                         | Sign-in by email: a code, and in the browser a link too, sent through this SMTP server (`smtps://user:password@host:465`), from an address such as `Preview <noreply@example.com>`. The mail speaks the sign-in page's language.                                     |
+| `PREVIEW_SIGNIN_EMAIL`                                                                                                          | `on` (default) or `off`. `off` takes sign-in by mail away although `PREVIEW_SMTP_URL` is set, which then carries only the app's own mail (feedback); a provider must remain.                                                                                         |
 | `PREVIEW_OIDC_<NAME>_CLIENT_ID`, `PREVIEW_OIDC_<NAME>_CLIENT_SECRET`, `PREVIEW_OIDC_<NAME>_ISSUER`, `PREVIEW_OIDC_<NAME>_LABEL` | A sign-in provider. `GITHUB`, `GOOGLE` and `APPLE` are built in and need no issuer; any other name is an OIDC provider and needs `_ISSUER`, its discovery base. `_LABEL` is the button's name. The allowlist applies to every provider.                              |
 | `PORT`                                                                                                                          | **Must be the port the server really listens on** (the image sets `3000`). /mcp and /api/v1 check OAuth access tokens against the app's own key set at `http://127.0.0.1:$PORT/api/auth/jwks`; with a wrong port every MCP call answers 401 (API tokens still work). |
 | `PREVIEW_E2E`                                                                                                                   | `1` turns on the end-to-end tests' sign-in route (`/api/test/sign-in`), outside production only; under `NODE_ENV=production`, as in the image, the route doesn't exist. Never set on a server.                                                                       |
