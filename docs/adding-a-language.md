@@ -6,7 +6,8 @@ The pages speak German and English, German by default. A language is two things:
 
 1. Copy `components/copy/en.ts` (the reference) to `components/copy/<code>.ts`, for example `fr.ts`, and export it typed as `Copy` (`export const fr: Copy = { … }`, as `de.ts` does). Translate every value; TypeScript refuses a missing key.
 2. Add it to `COPIES` in `components/copy/index.ts` (`{ en, de, fr }`). `LOCALES`, the language switch, `proxy.ts`'s pick from `Accept-Language` and the `app/[lang]/` routes follow from that list.
-3. `npm test`: `copy.test.ts` checks that every module has the same keys as the reference.
+3. Its flag for the language switch goes into `components/flags.tsx` (an SVG of 30 × 20); without one the switch shows the language's code.
+4. `npm test`: `copy.test.ts` checks that every module has the same keys as the reference.
 
 The language of a request is the switch's cookie, then `Accept-Language`, then German. A customer's page opens in the language the operator set for that customer unless the visitor picked another.
 
