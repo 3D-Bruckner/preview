@@ -3,11 +3,11 @@
 // name or the type its sender declared. An upload is all or nothing: a refusal before anything is written leaves no folder, and a failure
 // after the files moved removes the version's folder, so neither a row nor a file stays.
 import { randomUUID } from "node:crypto";
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync } from "fflate";
 import { invalid, notFound, ok, type Outcome } from "./outcome";
-import { FactsError, readFacts, type Facts } from "./threemf";
+import { FactsError, readFacts, readThumbnail, type Facts } from "./threemf";
 import { mutation, type Runtime } from "./runtime";
 import type { Version } from "./versions";
 import { figuresOf } from "./figures";
@@ -56,11 +56,14 @@ function store(from: string, to: string): void {
 
 const versionDir = (rt: Runtime, modelId: string, versionId: string): string => join(rt.config.dataDir, "files", modelId, versionId);
 
-/** Adds the next version of a model (max + 1) with its files; refused wholly when any file is not what it should be. */
+/**
+ * Adds the next version of a model (max + 1) with its files; refused wholly when any file is not what it should be. Without a `preview`
+ * the 3MF's own picture is used (readThumbnail); a 3MF without one then needs a preview.
+ */
 export async function addVersion(
   rt: Runtime,
   modelId: string,
-  input: { threemf: UploadedFile; preview: UploadedFile; drawings: UploadedFile[]; note?: string },
+  input: { threemf: UploadedFile; preview?: UploadedFile; drawings: UploadedFile[]; note?: string },
 ): Promise<Outcome<Version>> {
   if (!rt.store.model(modelId)) return notFound(`No model ${modelId}.`);
   const threemf = readFileSync(input.threemf.path);
@@ -72,8 +75,18 @@ export async function addVersion(
     if (e instanceof FactsError) return invalid(e.message);
     throw e;
   }
-  const preview = readFileSync(input.preview.path);
-  if (!isPng(preview)) return invalid("preview: not a PNG");
+  let ownPreview: Uint8Array | null = null;
+  if (input.preview) {
+    if (!isPng(readFileSync(input.preview.path))) return invalid("preview: not a PNG");
+  } else {
+    try {
+      ownPreview = readThumbnail(threemf);
+    } catch (e) {
+      if (e instanceof FactsError) return invalid(e.message);
+      throw e;
+    }
+    if (!ownPreview) return invalid("preview: the 3MF has no picture of its own (Metadata/plate_1.png or thumbnail.png), so the upload needs one");
+  }
   const drawings: { id: string; kind: DrawingKind; path: string }[] = [];
   for (const [i, d] of input.drawings.entries()) {
     const bytes = readFileSync(d.path);
@@ -88,7 +101,8 @@ export async function addVersion(
   try {
     mkdirSync(dir, { recursive: true });
     store(input.threemf.path, join(dir, "model.3mf"));
-    store(input.preview.path, join(dir, "preview.png"));
+    if (input.preview) store(input.preview.path, join(dir, "preview.png"));
+    else writeFileSync(join(dir, "preview.png"), ownPreview!, { mode: 0o600 });
     for (const d of drawings) store(d.path, join(dir, `${d.id}.${d.kind}`));
     const out = mutation(rt, (): Outcome<Version> => {
       if (!rt.store.model(modelId)) return notFound(`No model ${modelId}.`);

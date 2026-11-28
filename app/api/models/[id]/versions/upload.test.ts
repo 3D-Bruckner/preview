@@ -86,10 +86,15 @@ describe("POST /api/models/[id]/versions", () => {
   it("answers 400 for a missing or doubled model or preview, in the page's language", async () => {
     expect((await send([previewPng], "en")).body).toEqual({ error: "The upload needs one 3MF file in the field “model”." });
     expect((await send([model3mf, model3mf, previewPng])).status).toBe(400);
-    expect((await send([model3mf], "en")).body).toEqual({ error: "The upload needs one PNG in the field “preview”." });
+    expect((await send([model3mf], "en")).body).toEqual({ error: "This 3MF has no picture of its own: the upload needs one PNG in the field “preview”." });
     expect((await send([model3mf, previewPng, previewPng])).status).toBe(400);
     expect((await send([model3mf, previewPng, ["other", new Blob([fixture("preview.png")]), "x.png"]])).status).toBe(400);
     expect(storedFiles()).toEqual([]);
+  });
+
+  it("takes the 3MF's own picture when no preview is sent", async () => {
+    const plates: Part = ["model", new Blob([fixture("plates.3mf")]), "plates.3mf"];
+    expect((await send([plates])).status).toBe(201);
   });
 
   it("answers 400 for more than 10 drawings", async () => {

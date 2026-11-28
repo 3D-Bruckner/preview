@@ -62,7 +62,7 @@ curl -fsS https://preview.example.com/api/models/<model-id>/versions \
   -F note="Wall thickness 2 mm"
 ```
 
-`model` (one 3MF) and `preview` (one PNG) are required, `drawing` takes 0 to 10 PNG, SVG or PDF files, `note` is text. The answer is `201` with `{"id", "number", "note", "link"}`, `link` being the model's page for its customer; a refusal is `{"error"}` in the request's language. A request may carry up to `PREVIEW_MAX_UPLOAD_MB` (100) in all. Everything else (customers, models, versions' lists, tokens) is the REST API at `/api/v1`, described at `<PUBLIC_URL>/api/v1/openapi.json` (committed as [`openapi.json`](openapi.json)), and Claude manages it over MCP at `<PUBLIC_URL>/mcp` ([the tools](docs/mcp.md)).
+`model` (one 3MF) is required; `preview` (one PNG) is optional when the 3MF carries a picture of its own (Bambu Studio's `Metadata/plate_1.png`, or `Metadata/thumbnail.png`), which is then the preview; `drawing` takes 0 to 10 PNG, SVG or PDF files, `note` is text. The answer is `201` with `{"id", "number", "note", "link"}`, `link` being the model's page for its customer; a refusal is `{"error"}` in the request's language. A request may carry up to `PREVIEW_MAX_UPLOAD_MB` (100) in all. Everything else (customers, models, versions' lists, tokens) is the REST API at `/api/v1`, described at `<PUBLIC_URL>/api/v1/openapi.json` (committed as [`openapi.json`](openapi.json)), and Claude manages it over MCP at `<PUBLIC_URL>/mcp` ([the tools](docs/mcp.md)).
 
 ## Developing
 
