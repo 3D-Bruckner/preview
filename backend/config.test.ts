@@ -89,6 +89,18 @@ describe("loadConfig", () => {
     expect(c.smtpUrl).toBeUndefined();
     expect(c.smtpFrom).toBeUndefined();
     expect(c.devUser).toBeUndefined();
+    expect(c.slicer).toBeUndefined();
+  });
+
+  it("takes the slicer: its URL, an optional token and the material for files that name none (PLA unless set)", () => {
+    expect(loadConfig(env({ PREVIEW_SLICER_URL: "https://slicing.example.com/" })).slicer).toEqual({ url: "https://slicing.example.com", material: "PLA" });
+    expect(loadConfig(env({ PREVIEW_SLICER_URL: "https://slicing.example.com", PREVIEW_SLICER_TOKEN: "t0k", PREVIEW_SLICER_MATERIAL: "petg" })).slicer).toEqual(
+      { url: "https://slicing.example.com", token: "t0k", material: "PETG" },
+    );
+    expect(() => loadConfig(env({ PREVIEW_SLICER_URL: "https://s.example.com", PREVIEW_SLICER_MATERIAL: "ABS" }))).toThrow(
+      "PREVIEW_SLICER_MATERIAL must be PLA or PETG",
+    );
+    expect(() => loadConfig(env({ PREVIEW_SLICER_URL: "slicing" }))).toThrow("PREVIEW_SLICER_URL must be an http(s) URL");
   });
 
   it("takes every setting from the environment", () => {

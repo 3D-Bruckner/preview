@@ -28,6 +28,8 @@ export type Runtime = {
   person: (h: Headers) => Promise<Person | null>;
   /** Who a request with an API token or an OAuth access token for /api/v1 is: the kit's restCaller. */
   apiCaller: (req: Request) => Promise<RestCaller | null>;
+  /** Wakes the slicer's worker (backend/slicer.ts) when a version may need slicing; does nothing while no worker runs. */
+  wakeSlicer: () => void;
 };
 
 export function openRuntime(config: Config, signIn: SignInSettings, mail: MailWording): Runtime {
@@ -52,6 +54,7 @@ export function openRuntime(config: Config, signIn: SignInSettings, mail: MailWo
     auth,
     person: async (h) => personOf(h, await auth(), signIn.devUser),
     apiCaller: async (req) => restCaller(req, await auth(), signIn),
+    wakeSlicer: () => {},
   };
 }
 

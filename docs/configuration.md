@@ -31,6 +31,16 @@ preview names no one by itself: whoever runs an instance puts their own name, co
 | `PREVIEW_IMPRINT_URL`  | none: no link  | The footer's link to your imprint, on every page. Operators in Germany need it (and the next one).                                                                                                   |
 | `PREVIEW_PRIVACY_URL`  | none: no link  | The footer's link to your privacy policy, on every page.                                                                                                                                             |
 
+## Print figures
+
+A 3MF that Bambu Studio has sliced carries its print time, weight and grams per filament, and preview reads them from the file. For any other 3MF (a workshop's export, a plain 3MF) preview asks a slicing service (`3D-Bruckner/slicing`'s `POST /estimate`), one file at a time, in the background; the customer's page says "wird berechnet" until it answers. A busy or limited service (429, 503, 504) is asked again with backoff, at most 5 times over about an hour; a refusal (400, 413, 422) is final, and the web app offers to try again.
+
+| Variable                  | Default | What it does                                                                                                       |
+| ------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `PREVIEW_SLICER_URL`      | none    | The slicing service's base URL. Unset: files without their own figures show none; nothing else changes.            |
+| `PREVIEW_SLICER_TOKEN`    | none    | Sent as `Authorization: Bearer`; the service's token lifts its hourly limit (10 files an hour per caller without). |
+| `PREVIEW_SLICER_MATERIAL` | `PLA`   | `PLA` or `PETG`: what a file is sliced in when its first part's filament is neither.                               |
+
 ## Sign-in (read by next-app-kit)
 
 next-app-kit's `signInFromEnv` reads these under the prefix `PREVIEW` (`backend/accounts.ts`). Some way in must exist: SMTP, a provider, or (in development) a dev user.

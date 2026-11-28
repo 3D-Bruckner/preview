@@ -51,4 +51,22 @@ export const MIGRATIONS: Migration[] = [
     name: "version_facts",
     sql: `alter table versions add column facts text;`,
   },
+  {
+    // The slicing service's work per version whose 3MF has no print figures of its own (backend/slicer.ts): pending until it answers
+    // (next_at: when to ask, again after a busy answer), done with its figures (JSON of FactsFigures), or failed with the reason.
+    // Apart from the facts, so reading a 3MF again never loses the slicer's answer.
+    name: "slice_jobs",
+    sql: `
+      create table slice_jobs (
+        version_id text primary key references versions(id) on delete cascade,
+        state text not null check (state in ('pending', 'done', 'failed')),
+        attempts integer not null default 0,
+        next_at text not null,
+        reason text,
+        figures text,
+        updated_at text not null
+      );
+      create index slice_jobs_due on slice_jobs(state, next_at);
+    `,
+  },
 ];

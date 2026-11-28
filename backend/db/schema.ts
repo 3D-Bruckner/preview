@@ -40,14 +40,28 @@ export interface DrawingsTable {
   position: number;
 }
 
+export interface SliceJobsTable {
+  version_id: string;
+  state: "pending" | "done" | "failed";
+  attempts: number;
+  /** When a pending job is due (ISO time). */
+  next_at: string;
+  reason: string | null;
+  /** JSON of backend/threemf's FactsFigures, once done. */
+  figures: string | null;
+  updated_at: string;
+}
+
 export type DB = {
   customers: CustomersTable;
   models: ModelsTable;
   versions: VersionsTable;
   drawings: DrawingsTable;
+  slice_jobs: SliceJobsTable;
 };
 
 export type CustomerRow = CustomersTable;
 export type ModelRow = ModelsTable;
 export type VersionRow = VersionsTable;
 export type DrawingRow = DrawingsTable;
+export type SliceJobRow = SliceJobsTable;

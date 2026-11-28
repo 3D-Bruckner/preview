@@ -108,6 +108,8 @@ export async function addVersion(
       return ok({ id, modelId, number, note, createdAt: now, parts: facts.parts.length, drawings: drawings.map((d) => ({ id: d.id, kind: d.kind })) });
     });
     stored = out.ok;
+    // A 3MF without figures of its own is the slicer's to answer (backend/slicer.ts); its worker, where one runs, looks now.
+    if (out.ok && !facts.figures) rt.wakeSlicer();
     return out;
   } finally {
     if (!stored) rmSync(dir, { recursive: true, force: true });

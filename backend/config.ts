@@ -41,6 +41,17 @@ export type Config = {
   brand: Brand;
   /** PREVIEW_DEV_USER: development only, everyone reaching the app is this person. */
   devUser?: string;
+  /** The slicing service that gives print figures to a 3MF without its own; none: such files have no figures. */
+  slicer?: Slicer;
+};
+
+export type Slicer = {
+  /** PREVIEW_SLICER_URL, without a trailing slash: its POST /estimate is called. */
+  url: string;
+  /** PREVIEW_SLICER_TOKEN: sent as a bearer token, which lifts the service's hourly limit. */
+  token?: string;
+  /** PREVIEW_SLICER_MATERIAL: what a file is sliced in when its own filaments are neither PLA nor PETG. */
+  material: "PLA" | "PETG";
 };
 
 /** The accent when PREVIEW_ACCENT_COLOR is unset: a plain blue, 6.7:1 against white (WCAG AA for text). */
@@ -55,6 +66,7 @@ const optionalUrl = (name: string) => z.preprocess(blank, z.url({ protocol: /^ht
 const MAX_UPLOAD = "PREVIEW_MAX_UPLOAD_MB must be a whole number of megabytes, at least 1";
 const BRAND_NAME = "PREVIEW_BRAND_NAME must be at most 80 characters";
 const ACCENT = "PREVIEW_ACCENT_COLOR must be a hex colour such as #1d4ed8";
+const MATERIAL = "PREVIEW_SLICER_MATERIAL must be PLA or PETG";
 const LOGO = "PREVIEW_LOGO must be an .svg or .png file inside DATA_DIR, such as brand/logo.svg";
 
 const schema = z.object({
@@ -87,6 +99,12 @@ const schema = z.object({
   PREVIEW_IMPRINT_URL: optionalUrl("PREVIEW_IMPRINT_URL"),
   PREVIEW_PRIVACY_URL: optionalUrl("PREVIEW_PRIVACY_URL"),
   PREVIEW_DEV_USER: optional,
+  PREVIEW_SLICER_URL: optionalUrl("PREVIEW_SLICER_URL"),
+  PREVIEW_SLICER_TOKEN: optional,
+  PREVIEW_SLICER_MATERIAL: z.preprocess(
+    (v) => (typeof blank(v) === "string" ? (v as string).trim().toUpperCase() : undefined),
+    z.enum(["PLA", "PETG"], { error: MATERIAL }).optional(),
+  ),
 });
 
 /** Who reads a variable that isn't loadConfig's own. */
@@ -155,5 +173,9 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
   if (e.PREVIEW_SMTP_URL) config.smtpUrl = e.PREVIEW_SMTP_URL;
   if (e.PREVIEW_SMTP_FROM) config.smtpFrom = e.PREVIEW_SMTP_FROM;
   if (e.PREVIEW_DEV_USER) config.devUser = e.PREVIEW_DEV_USER;
+  if (e.PREVIEW_SLICER_URL) {
+    config.slicer = { url: e.PREVIEW_SLICER_URL.replace(/\/+$/, ""), material: e.PREVIEW_SLICER_MATERIAL ?? "PLA" };
+    if (e.PREVIEW_SLICER_TOKEN) config.slicer.token = e.PREVIEW_SLICER_TOKEN;
+  }
   return config;
 }
