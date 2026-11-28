@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Facts } from "@/backend/client";
 import { useCopy, useLocale } from "@/components/CopyProvider";
 import { formatMm } from "@/components/format";
-import { FitIcon, FullscreenIcon, GridIcon, ProblemIcon } from "@/components/icons";
+import { FitIcon, FocusIcon, FullscreenIcon, GridIcon, ProblemIcon, RemoveIcon } from "@/components/icons";
 import { useHydrated } from "@/components/useHydrated";
 import type { CameraDirection, Size, View } from "@/components/viewer/scene";
 
@@ -13,8 +13,11 @@ type Props = {
   src: string;
   label: string;
   facts: Facts;
-  /** The part shown alone (null: all), the hidden ones and the one to light up: ModelReview's state. */
-  focused?: string | null;
+  /** The parts shown alone (none: all), the hidden ones and the one to light up: ModelReview's state. */
+  focused?: ReadonlySet<string>;
+  /** What the focus bar over the view calls the parts shown alone ("Box + Deckel"), and how it goes back to the whole model. */
+  focusLabel?: string | null;
+  onWhole?: () => void;
   hidden?: ReadonlySet<string>;
   hovered?: string | null;
   /** The filament colour picked per part (#rrggbb, by part key); a part not in it shows the file's colour. */
@@ -47,7 +50,19 @@ export function ModelViewer(props: Props) {
   return <Viewer key={props.src} {...props} />;
 }
 
-function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = null, colours = NO_COLOURS, size = null, onSize }: Props) {
+function Viewer({
+  src,
+  label,
+  facts,
+  focused = NONE,
+  hidden = NONE,
+  hovered = null,
+  colours = NO_COLOURS,
+  size = null,
+  onSize,
+  focusLabel = null,
+  onWhole,
+}: Props) {
   const t = useCopy().customer;
   const lang = useLocale();
   const hydrated = useHydrated();
@@ -91,7 +106,7 @@ function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = nu
         view.current = opened;
         const now = picked.current;
         if (now.hidden.size) opened.setHidden(now.hidden);
-        if (now.focused) opened.focus(now.focused);
+        if (now.focused.size) opened.focus(now.focused);
         if (now.hovered) opened.highlight(now.hovered);
         paint(opened, NO_COLOURS, now.colours);
         painted.current = now.colours;
@@ -167,6 +182,25 @@ function Viewer({ src, label, facts, focused = null, hidden = NONE, hovered = nu
           <div role="alert" className="absolute inset-0 flex items-center justify-center gap-2 bg-surface p-8 text-center text-muted">
             <ProblemIcon aria-hidden="true" className="size-5 shrink-0" />
             <span>{t.viewerError}</span>
+          </div>
+        )}
+        {state !== "error" && focused.size > 0 && focusLabel && (
+          <div
+            data-focus-bar
+            className="pointer-events-auto absolute inset-x-3 bottom-3 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-2 rounded-full bg-ink py-1 pr-1 pl-3 text-sm text-paper shadow-md"
+          >
+            <FocusIcon aria-hidden="true" className="size-4 shrink-0" />
+            <span className="min-w-0 truncate">
+              {t.focusBar.only} <b className="font-semibold">{focusLabel}</b>
+            </span>
+            <button
+              type="button"
+              onClick={onWhole}
+              className="inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-full bg-paper/15 px-3 font-semibold whitespace-nowrap hover:bg-paper/25"
+            >
+              {t.focusBar.whole}
+              <RemoveIcon aria-hidden="true" className="size-3.5" />
+            </button>
           </div>
         )}
         {state !== "error" && (

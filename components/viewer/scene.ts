@@ -42,12 +42,12 @@ export type Size = { x: number; y: number; z: number };
 const MOVE_MS = 300;
 
 export interface View {
-  /** Iso, framing what is shown (the focused part, or the whole model). */
+  /** Iso, framing what is shown (the focused parts, or the whole model). */
   fit(): void;
   /** Looks from that direction at what is shown; stops the turntable. */
   setCamera(dir: CameraDirection): void;
-  /** Shows only that part, framed (null: everything, framed). */
-  focus(key: string | null): void;
+  /** Shows only these parts, framed (null or none: everything, framed). */
+  focus(keys: ReadonlySet<string> | null): void;
   /** Hides these parts (every placement); the framing stays. */
   setHidden(keys: ReadonlySet<string>): void;
   /** Lights that part up in the accent (null: none). */
@@ -259,8 +259,8 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
 
   const meshes: Mesh[] = [];
   model.traverse((o) => void (o instanceof Mesh && meshes.push(o)));
-  const keyed = (key: string) => parts.filter((p) => p.key === key).map((p) => p.mesh);
-  let focused: string | null = null;
+  const keyed = (keys: ReadonlySet<string>) => parts.filter((p) => keys.has(p.key)).map((p) => p.mesh);
+  let focused: ReadonlySet<string> | null = null;
   let hidden: ReadonlySet<string> = new Set();
   let move: { from: Vector3; fromTarget: Vector3; to: Vector3; toTarget: Vector3; start: number | null } | null = null;
 
@@ -298,7 +298,7 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
   };
   const currentDirection = () => camera.position.clone().sub(controls.target).normalize();
   const shown = () => {
-    for (const m of meshes) m.visible = !hidden.has(m.name) && (focused === null || m.name === focused);
+    for (const m of meshes) m.visible = !hidden.has(m.name) && (focused === null || focused.has(m.name));
     renderer.shadowMap.needsUpdate = true;
     dirty = true;
     options.onSize?.(size());
@@ -358,8 +358,8 @@ export function openView(mount: HTMLElement, data: ArrayBuffer, facts: Facts, op
       settle();
       look(DIRECTIONS[dir]);
     },
-    focus(key) {
-      focused = key;
+    focus(keys) {
+      focused = keys && keys.size > 0 ? keys : null;
       takeOver();
       settle();
       shown();

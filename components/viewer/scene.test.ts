@@ -206,7 +206,7 @@ describe("the view's parts and camera", () => {
 
   it("focus shows only that part, measures it, and null shows everything again", () => {
     const { view, on } = openPlates();
-    view.focus("4:0");
+    view.focus(new Set(["4:0"]));
     expect(
       view
         .meshes()
@@ -220,9 +220,24 @@ describe("the view's parts and camera", () => {
     expect(view.meshes().every((m) => m.visible)).toBe(true);
   });
 
+  it("focus on several parts shows them together and measures them as one, and no parts shows everything", () => {
+    const { view } = openPlates();
+    view.focus(new Set(["4:0", "4:1"]));
+    const names = view
+      .meshes()
+      .filter((m) => m.visible)
+      .map((m) => m.name);
+    expect(new Set(names)).toEqual(new Set(["4:0", "4:1"]));
+    const both = view.size();
+    view.focus(new Set(["4:0"]));
+    expect(view.size().x).toBeLessThan(both.x + both.y + both.z);
+    view.focus(new Set());
+    expect(view.meshes().every((m) => m.visible)).toBe(true);
+  });
+
   it("frames the focused part: the camera looks at its centre", () => {
     const { view } = openPlates();
-    view.focus("4:1");
+    view.focus(new Set(["4:1"]));
     const target = fake.controls.target;
     const world = meshesOf(view, "4:1")[0]!;
     world.geometry.computeBoundingBox();
@@ -283,12 +298,12 @@ describe("the view's parts and camera", () => {
   it("moves the camera over a few frames, or at once for a visitor who turned motion off", () => {
     const still = openPlates({ animate: false });
     const before = fake.controls.target.clone();
-    still.view.focus("4:0");
+    still.view.focus(new Set(["4:0"]));
     expect(fake.controls.target.distanceTo(before)).toBeGreaterThan(1);
 
     const moving = openPlates({ animate: true });
     const from = fake.controls.target.clone();
-    moving.view.focus("4:0");
+    moving.view.focus(new Set(["4:0"]));
     expect(fake.controls.target.distanceTo(from)).toBe(0);
     fake.renderer.loop!(1000);
     fake.renderer.loop!(1150);

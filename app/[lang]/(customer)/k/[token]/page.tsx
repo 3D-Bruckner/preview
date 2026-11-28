@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { customerView } from "@/backend";
+import { headers } from "next/headers";
+import { customerView, recordView } from "@/backend";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor } from "@/components/copy";
 import { formatDay, isRecent } from "@/components/format";
@@ -16,11 +17,15 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/k/[token]"
 
 // A customer's page, opened by their link: their models as cards, each with the preview picture of its newest version (the 3MF loads only
 // on a model's page), "new version" for a week after an upload, and the newest note. A token that opens nothing is the same 404 as any
-// missing page.
+// missing page. Opening it records that the customer looked (not for someone signed in); the cards don't prefetch, which would count as
+// looking at a model.
 export default async function CustomerPage({ params }: PageProps<"/[lang]/k/[token]">) {
   const { lang, token } = await params;
-  const view = customerView(runtime(), token);
+  const rt = runtime();
+  const view = customerView(rt, token);
   if (!view) notFound();
+  // The customer opened their link; a look by someone signed in to the web app is not theirs.
+  if (!(await rt.person(await headers()))) recordView(rt, token);
   const t = copyFor(lang).customer;
   const now = new Date();
   const newest = view.models
@@ -54,7 +59,11 @@ export default async function CustomerPage({ params }: PageProps<"/[lang]/k/[tok
           <ul className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {view.models.map((m) => (
               <li key={m.id}>
-                <Link href={`/k/${token}/${m.id}`} className="block h-full overflow-hidden rounded-md border border-border bg-paper hover:border-line">
+                <Link
+                  href={`/k/${token}/${m.id}`}
+                  prefetch={false}
+                  className="block h-full overflow-hidden rounded-md border border-border bg-paper hover:border-line"
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element -- the customer's own file route, private */}
                   <img src={m.latest.previewUrl} alt="" loading="lazy" className="aspect-[4/3] w-full border-b border-border bg-surface object-contain" />
                   <span className="block px-4 pt-3.5 pb-4">

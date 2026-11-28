@@ -26,6 +26,8 @@ export type CustomerView = {
 export type NamedFigures = Omit<Figures, "filaments"> & { filaments: (Figures["filaments"][number] & { name: string | null })[] };
 
 export type CustomerVersionView = {
+  /** The version's id, as its files' addresses carry it (and recordView takes it). */
+  id: string;
   number: number;
   note: string | null;
   createdAt: string;
@@ -76,6 +78,7 @@ function versionsOf(rt: Runtime, token: string, modelId: string): CustomerVersio
     const base = filesUrl(token, v.id);
     const print = figuresOf(rt, v, jobs.get(v.id));
     return {
+      id: v.id,
       number: v.number,
       note: v.note,
       createdAt: v.created_at,
