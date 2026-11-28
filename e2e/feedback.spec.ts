@@ -96,3 +96,28 @@ test("a model page with pickers and feedback has no accessibility problems, and 
   await noViolations(page);
   await everyControlByKeyboard(page);
 });
+
+test("the web app shows new feedback on the start page and under its version, and marks it seen once shown", async ({ page }) => {
+  filament("Signalrot", "PLA", "#d62828");
+  const c = customer(`Rückmeldung ${id()}`);
+  const title = `Spulenhalter ${id()}`;
+  const m = model(c, title);
+  await version(m, { threemf: "plates.3mf" });
+  await feedback(c, m, 1, "Bitte die Wand 2 mm dicker.");
+
+  await signIn(page, "/");
+  const fresh = page.getByRole("region", { name: /Neue Rückmeldungen/ });
+  await expect(fresh).toBeVisible();
+  await fresh.getByRole("link", { name: new RegExp(title) }).click();
+
+  const versions = page.getByRole("region", { name: "Versionen" });
+  await expect(versions).toContainText(`Rückmeldung von ${c.name}`);
+  await expect(versions).toContainText("Bitte die Wand 2 mm dicker.");
+  await expect(versions).toContainText("neu");
+
+  await page.reload();
+  await expect(versions).toContainText("Bitte die Wand 2 mm dicker.");
+  await expect(versions.getByText("neu", { exact: true })).toHaveCount(0);
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: new RegExp(title) })).toHaveCount(0);
+});

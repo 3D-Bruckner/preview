@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCustomer, getModel, listVersions } from "@/backend";
+import { getCustomer, getModel, listFeedback, listVersions, markFeedbackSeen } from "@/backend";
 import { requirePerson } from "@/app/_lib/signin";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor } from "@/components/copy";
@@ -20,7 +20,8 @@ export async function generateMetadata({ params }: PageProps<"/[lang]/models/[id
   return { title: m.ok ? m.value.title : copyFor(lang).home.title };
 }
 
-// One model: its details, its versions (newest first) and the manual upload of the next one.
+// One model: its details, its versions (newest first) with their print figures and the customer's feedback (marked seen once shown here,
+// still flagged "neu" this once), and the manual upload of the next one.
 export default async function ModelAdminPage({ params }: PageProps<"/[lang]/models/[id]">) {
   const { lang, id } = await params;
   await requirePerson(`/models/${id}`);
@@ -32,6 +33,9 @@ export default async function ModelAdminPage({ params }: PageProps<"/[lang]/mode
   const versions = listVersions(rt, id);
   if (!customer.ok || !versions.ok) notFound();
   const t = copyFor(lang).admin.model;
+  const feedback = listFeedback(rt, { modelId: id });
+  const fresh = feedback.filter((x) => !x.seenAt).map((x) => x.id);
+  if (fresh.length > 0) markFeedbackSeen(rt, fresh);
   const f = { ...t.figures, duration: ({ h, m }: { h: number; m: number }) => copyFor(lang).customer.print.duration(h, m) };
   const link = customer.value.link ? `${rt.config.publicUrl}/k/${customer.value.link}/${m.id}` : null;
   return (
@@ -73,6 +77,24 @@ export default async function ModelAdminPage({ params }: PageProps<"/[lang]/mode
                   </span>
                 )}
                 {v.slicing === "pending" && <span className="mt-1 block text-sm text-muted">{f.pending}</span>}
+                {feedback
+                  .filter((x) => x.versionId === v.id)
+                  .map((x) => (
+                    <div key={x.id} className="mt-2 rounded-md border border-border bg-surface p-2 text-sm">
+                      <span className="block font-medium">
+                        {t.feedback.from(x.customerName, formatWhen(lang, x.createdAt))}
+                        {!x.seenAt && <span className="ml-2 rounded-full border border-accent px-2 text-xs text-accent">{t.feedback.new}</span>}
+                      </span>
+                      {x.wishes.length > 0 && (
+                        <ul className="mt-1 text-muted">
+                          {x.wishes.map((w) => (
+                            <li key={w.part}>{t.feedback.wish(w.partName ?? w.part, w.filament.name, w.filament.material, w.filament.color)}</li>
+                          ))}
+                        </ul>
+                      )}
+                      {x.comment && <p className="mt-1 whitespace-pre-line">{x.comment}</p>}
+                    </div>
+                  ))}
                 {v.slicing === "failed" && (
                   <>
                     <span className="mt-1 block text-sm text-danger">{f.failed(f.reasons[v.reason ?? ""] ?? f.other(v.reason ?? ""))}</span>

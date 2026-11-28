@@ -18,6 +18,9 @@ export const de: Copy = {
   home: {
     title: "Kunden",
     empty: "Noch keine Kunden.",
+    feedback: (n: number) => (n === 1 ? "1 neue Rückmeldung" : `${n} neue Rückmeldungen`),
+    feedbackTitle: "Neue Rückmeldungen",
+    feedbackItem: (customer: string, model: string, version: number) => `${customer}: ${model}, Version ${version}`,
   },
   admin: {
     customers: {
@@ -78,6 +81,11 @@ export const de: Copy = {
       failed: "Der Upload hat nicht geklappt. Bitte noch einmal versuchen.",
       customerLink: "Für den Kunden öffnen",
       noCustomerLink: "Der Link des Kunden ist widerrufen, der Kunde sieht dieses Modell also nicht.",
+      feedback: {
+        from: (customer: string, when: string) => `Rückmeldung von ${customer} am ${when}`,
+        new: "neu",
+        wish: (part: string, filament: string, material: string, color: string) => `${part}: ${filament} (${material} · ${color})`,
+      },
       figures: {
         file: "aus der Datei",
         slicer: "vom Slicer geschätzt",

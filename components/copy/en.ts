@@ -19,6 +19,9 @@ export const en = {
   home: {
     title: "Customers",
     empty: "No customers yet.",
+    feedback: (n: number) => (n === 1 ? "1 new piece of feedback" : `${n} new pieces of feedback`),
+    feedbackTitle: "New feedback",
+    feedbackItem: (customer: string, model: string, version: number) => `${customer}: ${model}, version ${version}`,
   },
   admin: {
     customers: {
@@ -79,6 +82,11 @@ export const en = {
       failed: "The upload didn't work. Please try again.",
       customerLink: "Open for the customer",
       noCustomerLink: "The customer's link is revoked, so the customer can't see this model.",
+      feedback: {
+        from: (customer: string, when: string) => `Feedback from ${customer} on ${when}`,
+        new: "new",
+        wish: (part: string, filament: string, material: string, color: string) => `${part}: ${filament} (${material} · ${color})`,
+      },
       figures: {
         file: "from the file",
         slicer: "estimated by the slicer",
