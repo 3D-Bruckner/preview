@@ -51,7 +51,7 @@ describe("a version's facts", () => {
     const v = await upload();
     rt.store.setFacts(v.id, JSON.stringify({ ...platesFacts(), reader: 0 }));
     expect(fillMissingFacts(rt)).toEqual({ read: 1, failed: 0 });
-    expect(factsOf(rt.store.version(v.id)!)?.reader).toBe(1);
+    expect(factsOf(rt.store.version(v.id)!)?.reader).toBe(2);
   });
 
   it("rereadFacts replaces them; not_found for an unknown version", async () => {

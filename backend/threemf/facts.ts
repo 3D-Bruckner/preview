@@ -1,8 +1,8 @@
-// A version's facts from its 3MF: the parts and the filament slots. A Bambu Studio project (it has Metadata/model_settings.config) says
+// A version's facts from its 3MF: the parts, the filament slots and, when Bambu Studio sliced it, the print figures. A Bambu Studio project (it has Metadata/model_settings.config) says
 // per object which filament each of its parts prints in, and lists the slots in Metadata/project_settings.config (JSON); a plain 3MF
 // (OpenSCAD and other tools) gives one part per object, coloured by its base material or colour group. Odd metadata falls back to
 // what is known and never fails an upload; only a missing or too large root model does.
-import { READER, UNIT_MM, type Facts, type FactsPart, type FactsSlot } from "./types";
+import { READER, UNIT_MM, type Facts, type FactsFigures, type FactsFilament, type FactsPart, type FactsSlot } from "./types";
 import { scanTags, TagStream, type Tag } from "./xml";
 import { entries, FactsError, readEntry, scanEntry } from "./zip";
 
@@ -196,12 +196,55 @@ const part = (object: RootObject, slot: number | null): FactsPart => ({
 
 const text = (b: Uint8Array | null) => (b ? new TextDecoder().decode(b) : null);
 
+/** A number of grams or seconds as written, rounded to hundredths; 0 when it isn't one. */
+const amount = (v: string | undefined) => {
+  const n = Number.parseFloat(v ?? "");
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+};
+
+/**
+ * Bambu Studio's Metadata/slice_info.config: per sliced plate its time (`prediction`, seconds), weight and each filament's grams
+ * (`used_g`), summed over the plates; null when no plate has a time or a weight (the file was not sliced).
+ */
+function readFigures(xml: string | null): FactsFigures | null {
+  if (!xml) return null;
+  let seconds = 0;
+  let grams = 0;
+  let sliced = false;
+  let inPlate = false;
+  const filaments = new Map<number, FactsFilament>();
+  scanTags(xml, (t) => {
+    if (t.name === "plate") inPlate = !t.end && !t.selfClosing;
+    if (!inPlate || t.end) return;
+    if (t.name === "metadata" && (t.attrs.key === "prediction" || t.attrs.key === "weight")) {
+      const n = amount(t.attrs.value);
+      if (n > 0) sliced = true;
+      if (t.attrs.key === "prediction") seconds += n;
+      else grams += n;
+    } else if (t.name === "filament") {
+      const slot = Number.parseInt(t.attrs.id ?? "", 10);
+      const g = amount(t.attrs.used_g);
+      if (!(slot >= 1) || g === 0) return;
+      const had = filaments.get(slot);
+      filaments.set(slot, {
+        slot,
+        type: had?.type ?? (t.attrs.type || null),
+        color: had?.color ?? colour(t.attrs.color),
+        grams: Math.round(((had?.grams ?? 0) + g) * 100) / 100,
+      });
+    }
+  });
+  if (!sliced) return null;
+  return { seconds: Math.round(seconds), grams: Math.round(grams * 100) / 100, filaments: [...filaments.values()].sort((a, b) => a.slot - b.slot) };
+}
+
 /** The facts of a 3MF; throws FactsError when it has no root model or one too large to scan. */
 export function readFacts(bytes: Uint8Array): Facts {
   const all = entries(bytes);
   const root = readRoot(bytes, all);
   const settings = text(readEntry(bytes, "Metadata/model_settings.config", CONFIG_MAX, all));
-  if (settings === null) return { reader: READER, unit: root.unit, items: root.items, ...plainParts(root) };
+  const figures = readFigures(text(readEntry(bytes, "Metadata/slice_info.config", CONFIG_MAX, all)));
+  if (settings === null) return { reader: READER, unit: root.unit, items: root.items, ...plainParts(root), figures };
   const slots = readSlots(text(readEntry(bytes, "Metadata/project_settings.config", CONFIG_MAX, all)));
-  return { reader: READER, unit: root.unit, items: root.items, parts: bambuParts(root, readSettings(settings), slots), slots };
+  return { reader: READER, unit: root.unit, items: root.items, parts: bambuParts(root, readSettings(settings), slots), slots, figures };
 }

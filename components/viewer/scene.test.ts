@@ -165,7 +165,8 @@ function plates() {
   return new Group().add(halter, spule);
 }
 const PLATES: Facts = {
-  reader: 1,
+  reader: 2,
+  figures: null,
   unit: 1,
   items: ["2", "4"],
   slots: [

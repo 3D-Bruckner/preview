@@ -38,7 +38,7 @@ function zerosZip(size: number): Uint8Array {
 describe("readFacts", () => {
   it("reads a Bambu project's parts split by filament, and its slots", () => {
     expect(readFacts(bytes("plates.3mf"))).toEqual({
-      reader: 1,
+      reader: 2,
       unit: 1,
       items: ["2", "4"],
       slots: [
@@ -50,7 +50,40 @@ describe("readFacts", () => {
         { key: "4:0", name: "Spule", object: "4", components: [0], slot: 2 },
         { key: "4:1", name: "Spule", object: "4", components: [1], slot: 1 },
       ],
+      figures: {
+        seconds: 5400,
+        grams: 29.75,
+        filaments: [
+          { slot: 1, type: "PLA", color: "#00ae42", grams: 23.75 },
+          { slot: 2, type: "PETG", color: "#ffffff", grams: 6 },
+        ],
+      },
     });
+  });
+
+  it("has no figures for a file nobody sliced", () => {
+    expect(readFacts(bytes("ramp.3mf")).figures).toBeNull();
+    expect(readFacts(bytes("keychain.3mf")).figures).toBeNull();
+  });
+
+  it("has no figures when slice_info.config holds plates without a time or a weight", () => {
+    const f = readFacts(
+      platesWith((e) => {
+        e["Metadata/slice_info.config"] = strToU8('<?xml version="1.0"?><config><plate><metadata key="index" value="1"/></plate></config>');
+      }),
+    );
+    expect(f.figures).toBeNull();
+  });
+
+  it("sums the plates that were sliced and leaves out a filament line without grams", () => {
+    const f = readFacts(
+      platesWith((e) => {
+        e["Metadata/slice_info.config"] = strToU8(
+          '<config><plate><metadata key="prediction" value="61"/><metadata key="weight" value="1.5"/><filament id="2" type="PLA" color="#FF0000" used_g="1.5"/><filament id="1" type="PLA" color="#000000" used_g="0.00"/></plate><plate><metadata key="index" value="2"/></plate></config>',
+        );
+      }),
+    );
+    expect(f.figures).toEqual({ seconds: 61, grams: 1.5, filaments: [{ slot: 2, type: "PLA", color: "#ff0000", grams: 1.5 }] });
   });
 
   it("reads the README's show project: four mesh objects, each on its own extruder", () => {
@@ -91,7 +124,8 @@ describe("readFacts", () => {
 
   it("gives a colourless file one colourless slot", () => {
     expect(readFacts(bytes("ramp.3mf"))).toEqual({
-      reader: 1,
+      reader: 2,
+      figures: null,
       unit: 1,
       slots: [{ slot: 1, type: null, color: null }],
       items: ["1"],
