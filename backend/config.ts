@@ -112,7 +112,7 @@ const schema = z.object({
 });
 
 /** Who reads a variable that isn't loadConfig's own. */
-type ReadBy = "next-app-kit" | "backend/log.ts" | "Node" | "docker-entrypoint.mjs";
+type ReadBy = "next-app-kit" | "backend/accounts.ts" | "backend/log.ts" | "Node" | "docker-entrypoint.mjs";
 
 /**
  * Every variable preview reads: loadConfig's (the schema's keys) and the rest, each with who reads it. `<NAME>` stands for a sign-in
@@ -128,6 +128,7 @@ export const VARIABLES: Record<string, "loadConfig" | ReadBy> = {
   "PREVIEW_OIDC_<NAME>_CLIENT_SECRET": "next-app-kit",
   "PREVIEW_OIDC_<NAME>_ISSUER": "next-app-kit",
   "PREVIEW_OIDC_<NAME>_LABEL": "next-app-kit",
+  PREVIEW_SIGNIN_EMAIL: "backend/accounts.ts",
   PREVIEW_E2E: "next-app-kit",
   PORT: "next-app-kit",
   PREVIEW_LOG_LEVEL: "backend/log.ts",
