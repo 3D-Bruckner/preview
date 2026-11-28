@@ -10,6 +10,7 @@
     { "name": "Customers", "description": "Who the models are for, and the link each opens their page by." },
     { "name": "Models", "description": "What a customer is shown, and its versions." },
     { "name": "Filaments", "description": "The operator's filaments: what a customer can pick for each part, and send back as a colour wish." },
+    { "name": "Feedback", "description": "What customers sent back on a version: a comment and colour wishes." },
     { "name": "Tokens", "description": "The caller's own API tokens." }
   ],
   "paths": {
@@ -918,6 +919,177 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/feedback": {
+      "get": {
+        "operationId": "listFeedback",
+        "summary": "Customers' feedback, newest first; filter by ?customer=, ?model= and ?unseen=true",
+        "description": "The REST counterpart of the MCP tool `list_feedback`.",
+        "tags": ["Feedback"],
+        "security": [{ "bearer": [] }],
+        "parameters": [
+          {
+            "name": "customer",
+            "in": "query",
+            "required": false,
+            "description": "Only this customer's.",
+            "schema": { "description": "Only this customer's.", "type": "string", "minLength": 1 }
+          },
+          {
+            "name": "model",
+            "in": "query",
+            "required": false,
+            "description": "Only on this model's versions.",
+            "schema": { "description": "Only on this model's versions.", "type": "string", "minLength": 1 }
+          },
+          {
+            "name": "unseen",
+            "in": "query",
+            "required": false,
+            "description": "true: only what hasn't been seen.",
+            "schema": { "description": "true: only what hasn't been seen.", "type": "string", "enum": ["true", "false"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The feedback",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "feedback": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "minLength": 1 },
+                          "customer_id": { "type": "string", "minLength": 1 },
+                          "customer_name": { "type": "string" },
+                          "model_id": { "type": "string", "minLength": 1 },
+                          "model_title": { "type": "string" },
+                          "version_id": { "type": "string", "minLength": 1 },
+                          "version_number": { "type": "number" },
+                          "comment": { "type": ["string", "null"] },
+                          "wishes": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "part": { "type": "string", "description": "The part's key in the version's facts." },
+                                "part_name": { "type": ["string", "null"] },
+                                "filament": {
+                                  "type": "object",
+                                  "properties": {
+                                    "id": { "type": "string", "minLength": 1 },
+                                    "name": { "type": "string" },
+                                    "material": { "type": "string" },
+                                    "color": { "type": "string" }
+                                  },
+                                  "required": ["id", "name", "material", "color"],
+                                  "additionalProperties": false,
+                                  "description": "As it was when the wish was sent."
+                                }
+                              },
+                              "required": ["part", "part_name", "filament"],
+                              "additionalProperties": false
+                            },
+                            "description": "A filament per part the customer would like."
+                          },
+                          "created_at": { "type": "string" },
+                          "seen_at": { "description": "When it was seen in the web app; null: new.", "type": ["string", "null"] },
+                          "admin_url": { "type": "string", "description": "The model's page in the web app, where the feedback is listed under its version." }
+                        },
+                        "required": [
+                          "id",
+                          "customer_id",
+                          "customer_name",
+                          "model_id",
+                          "model_title",
+                          "version_id",
+                          "version_number",
+                          "comment",
+                          "wishes",
+                          "created_at",
+                          "seen_at",
+                          "admin_url"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": ["feedback"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        }
+      }
+    },
+    "/feedback/seen": {
+      "post": {
+        "operationId": "markFeedbackSeen",
+        "summary": "Mark feedback as seen; already seen stays as it was",
+        "description": "The REST counterpart of the MCP tool `mark_feedback_seen`.",
+        "tags": ["Feedback"],
+        "security": [{ "bearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "minItems": 1,
+                    "maxItems": 100,
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 },
+                    "description": "The feedback's ids (list_feedback)."
+                  }
+                },
+                "required": ["ids"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "How many were marked",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object", "properties": { "marked": { "type": "number" } }, "required": ["marked"], "additionalProperties": false }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "413": {
+            "description": "The request body is larger than 256 KiB (`too_large`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
         }
       }
     },

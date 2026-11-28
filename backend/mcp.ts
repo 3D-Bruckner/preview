@@ -8,6 +8,7 @@ import { createApiToken, listApiTokens, revokeApiToken } from "next-app-kit/toke
 import * as z from "zod";
 import { createCustomer, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer } from "./customers";
 import { rereadFacts } from "./facts";
+import { listFeedback, markFeedbackSeen } from "./feedback";
 import { createFilament, deleteFilament, listFilaments, updateFilament, type FilamentInput } from "./filaments";
 import { createModel, listModels, updateModel } from "./models";
 import type { Outcome } from "./outcome";
@@ -18,6 +19,10 @@ import {
   customerPatchSchema,
   customerSchema,
   factsReadSchema,
+  feedbackFilterSchema,
+  feedbackJson,
+  feedbackSchema,
+  markSeenSchema,
   filamentInputSchema,
   filamentJson,
   filamentPatchSchema,
@@ -310,6 +315,41 @@ export function mcpTools(rt: Runtime): Tool[] {
         const d = deleteFilament(rt, id);
         if (!d.ok) return refused(d);
         return { ...d.value, guidance: ["Deleted; customers can't pick it any more."] };
+      },
+    }),
+    // Feedback
+    defineTool({
+      name: "list_feedback",
+      description:
+        "Customers' feedback on their models' versions, newest first: a comment and colour wishes (a filament per part). Filter by customer, model or unseen.",
+      input: feedbackFilterSchema,
+      output: z.object({ feedback: z.array(feedbackSchema) }),
+      annotations: READ,
+      handle: async (filter) => {
+        const list = listFeedback(rt, filter);
+        const unseen = list.filter((f) => !f.seenAt).length;
+        return {
+          feedback: list.map((f) => feedbackJson(rt.config.publicUrl, f)),
+          guidance: [
+            list.length === 0
+              ? "No feedback here."
+              : unseen > 0
+                ? `${unseen} not seen yet; mark_feedback_seen marks them once dealt with (opening the model in the web app does too).`
+                : "All seen.",
+          ],
+        };
+      },
+    }),
+    defineTool({
+      name: "mark_feedback_seen",
+      description: "Mark feedback as seen, as opening its model in the web app does; already seen stays as it was.",
+      input: markSeenSchema,
+      output: z.object({ marked: z.number() }),
+      annotations: WRITE,
+      handle: async ({ ids }) => {
+        const r = markFeedbackSeen(rt, ids);
+        if (!r.ok) return refused(r);
+        return { ...r.value, guidance: [`${r.value.marked} marked seen; the web app's start page counts only the rest.`] };
       },
     }),
     // Tokens

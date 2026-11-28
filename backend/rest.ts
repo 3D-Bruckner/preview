@@ -8,6 +8,7 @@ import * as z from "zod";
 import { API_TOKEN_PREFIX } from "./accounts";
 import { createCustomer, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer, type Language } from "./customers";
 import { rereadFacts } from "./facts";
+import { listFeedback, markFeedbackSeen } from "./feedback";
 import { createFilament, deleteFilament, listFilaments, updateFilament, type FilamentInput } from "./filaments";
 import { createModel, listModels, updateModel } from "./models";
 import type { Outcome, Reason } from "./outcome";
@@ -18,6 +19,9 @@ import {
   customerPatchSchema,
   customerSchema,
   factsReadSchema,
+  feedbackJson,
+  feedbackSchema,
+  markSeenSchema,
   filamentInputSchema,
   filamentJson,
   filamentPatchSchema,
@@ -48,12 +52,13 @@ export const OPEN_API: OpenApiInfo = {
     { name: "Customers", description: "Who the models are for, and the link each opens their page by." },
     { name: "Models", description: "What a customer is shown, and its versions." },
     { name: "Filaments", description: "The operator's filaments: what a customer can pick for each part, and send back as a colour wish." },
+    { name: "Feedback", description: "What customers sent back on a version: a comment and colour wishes." },
     { name: "Tokens", description: "The caller's own API tokens." },
   ],
   bearer: `An API token (\`${API_TOKEN_PREFIX}…\`, made in the web app or with create_api_token; a \`read\` token may only GET), or an OAuth access token from this instance issued for this API (\`resource=<base>/api/v1\`). A token for /mcp is refused here.`,
 };
 
-const STATUS: Record<Reason, number> = { not_found: 404, invalid: 400, conflict: 409 };
+const STATUS: Record<Reason, number> = { not_found: 404, invalid: 400, conflict: 409, limited: 429 };
 
 /** A domain outcome as a reply: `status` with `body(value)`, or the refusal's status and message. */
 function answer<T>(o: Outcome<T>, status: number, body: (v: T) => unknown): Reply {
@@ -277,6 +282,44 @@ export const REST_OPS: Op<Runtime>[] = [
     ok: { status: 200, description: "Which was deleted", schema: z.object({ id: z.string() }) },
     errors: [401, 403, 404],
     handle: ({ ctx, params }) => answer(deleteFilament(ctx, params.id!), 200, (d) => d),
+  },
+  // Feedback
+  {
+    method: "GET",
+    path: "/feedback",
+    operationId: "listFeedback",
+    tool: "list_feedback",
+    summary: "Customers' feedback, newest first; filter by ?customer=, ?model= and ?unseen=true",
+    tag: "Feedback",
+    query: z.object({
+      customer: z.string().min(1).optional().describe("Only this customer's."),
+      model: z.string().min(1).optional().describe("Only on this model's versions."),
+      unseen: z.enum(["true", "false"]).optional().describe("true: only what hasn't been seen."),
+    }),
+    ok: { status: 200, description: "The feedback", schema: z.object({ feedback: z.array(feedbackSchema) }) },
+    errors: [400, 401],
+    handle: ({ ctx, query }) => ({
+      status: 200,
+      body: {
+        feedback: listFeedback(ctx, {
+          customerId: query.customer as string | undefined,
+          modelId: query.model as string | undefined,
+          unseen: query.unseen === "true",
+        }).map((f) => feedbackJson(ctx.config.publicUrl, f)),
+      },
+    }),
+  },
+  {
+    method: "POST",
+    path: "/feedback/seen",
+    operationId: "markFeedbackSeen",
+    tool: "mark_feedback_seen",
+    summary: "Mark feedback as seen; already seen stays as it was",
+    tag: "Feedback",
+    body: markSeenSchema,
+    ok: { status: 200, description: "How many were marked", schema: z.object({ marked: z.number() }) },
+    errors: [400, 401, 403, 404],
+    handle: ({ ctx, body }) => answer(markFeedbackSeen(ctx, (body as { ids: string[] }).ids), 200, (r) => r),
   },
   // Tokens
   {

@@ -186,3 +186,26 @@ describe("filaments", () => {
     expect((await call("DELETE", `/filaments/${g.id}`, undefined, me)).status).toBe(404);
   });
 });
+
+describe("feedback", () => {
+  it("GET /feedback answers it, filtered; POST /feedback/seen marks it", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const { createCustomer } = await import("./customers");
+    const { createModel } = await import("./models");
+    const { sendFeedback } = await import("./feedback");
+    const c = createCustomer(rt, { name: "Anna" });
+    if (!c.ok) throw new Error(c.message);
+    const m = createModel(rt, { customerId: c.value.id, title: "Spulenhalter" });
+    if (!m.ok) throw new Error(m.message);
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    await addVersion(rt, m.value.id, { threemf: fixture("ramp.3mf"), preview: fixture("preview.png"), drawings: [] });
+    const f = await sendFeedback(rt, c.value.link!, { modelId: m.value.id, versionNumber: 1, comment: "Bitte in Grün.", wishes: [] });
+    if (!f.ok) throw new Error(f.message);
+    const list = await json<{ feedback: { id: string }[] }>(await call("GET", `/feedback?model=${m.value.id}&unseen=true`, undefined, me));
+    expect(list.feedback.map((x) => x.id)).toEqual([f.value.id]);
+    const seen = await call("POST", "/feedback/seen", { ids: [f.value.id] }, me);
+    expect(await json(seen)).toEqual({ marked: 1 });
+    expect((await json<{ feedback: unknown[] }>(await call("GET", "/feedback?unseen=true", undefined, me))).feedback).toEqual([]);
+    expect((await call("POST", "/feedback/seen", { ids: ["nope"] }, me)).status).toBe(404);
+  });
+});

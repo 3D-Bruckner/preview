@@ -41,6 +41,14 @@ A 3MF that Bambu Studio has sliced carries its print time, weight and grams per 
 | `PREVIEW_SLICER_TOKEN`    | none    | Sent as `Authorization: Bearer`; the service's token lifts its hourly limit (10 files an hour per caller without). |
 | `PREVIEW_SLICER_MATERIAL` | `PLA`   | `PLA` or `PETG`: what a file is sliced in when its first part's filament is neither.                               |
 
+## Feedback
+
+A customer can send feedback on a version from their page: a comment (up to 2000 characters) and a colour wish per part, picked from the filaments the operator offers (settings, or `create_filament`). A customer may send 10 an hour and 50 a day. The web app lists it under the version; MCP and REST answer it with `list_feedback`.
+
+| Variable                 | Default | What it does                                                                                                                                                                          |
+| ------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PREVIEW_FEEDBACK_EMAIL` | none    | Where each feedback is mailed (in German: model, version, the wishes, the comment, a link into the web app), through `PREVIEW_SMTP_URL` and from `PREVIEW_SMTP_FROM`. Unset: no mail. |
+
 ## Sign-in (read by next-app-kit)
 
 next-app-kit's `signInFromEnv` reads these under the prefix `PREVIEW` (`backend/accounts.ts`). Some way in must exist: SMTP, a provider, or (in development) a dev user.

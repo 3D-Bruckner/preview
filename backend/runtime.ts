@@ -9,6 +9,7 @@ import { openPreviewAuth, type MailWording } from "./accounts";
 import type { Config } from "./config";
 import { openStore, type Store } from "./db";
 import { log } from "./log";
+import { smtpSender, type SendMail } from "./mail";
 import type { Outcome } from "./outcome";
 
 export type Runtime = {
@@ -30,6 +31,8 @@ export type Runtime = {
   apiCaller: (req: Request) => Promise<RestCaller | null>;
   /** Wakes the slicer's worker (backend/slicer.ts) when a version may need slicing; does nothing while no worker runs. */
   wakeSlicer: () => void;
+  /** Sends the app's own mail (mail.ts); tests catch it instead. */
+  sendMail: SendMail;
 };
 
 export function openRuntime(config: Config, signIn: SignInSettings, mail: MailWording): Runtime {
@@ -55,6 +58,7 @@ export function openRuntime(config: Config, signIn: SignInSettings, mail: MailWo
     person: async (h) => personOf(h, await auth(), signIn.devUser),
     apiCaller: async (req) => restCaller(req, await auth(), signIn),
     wakeSlicer: () => {},
+    sendMail: smtpSender(config),
   };
 }
 

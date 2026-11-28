@@ -246,6 +246,33 @@ describe("filaments", () => {
   });
 });
 
+describe("feedback", () => {
+  it("list_feedback answers the customer's feedback, newest first; mark_feedback_seen marks it", async () => {
+    const me = await owner();
+    const c = value(createCustomer(rt, { name: "Anna" }));
+    const m = value(createModel(rt, { customerId: c.id, title: "Spulenhalter" }));
+    await addVersion(rt, m.id, {
+      threemf: { path: join(import.meta.dirname, "fixtures", "ramp.3mf") },
+      preview: { path: join(import.meta.dirname, "fixtures", "preview.png") },
+      drawings: [],
+    });
+    const { sendFeedback } = await import("./feedback");
+    const f = value(await sendFeedback(rt, c.link!, { modelId: m.id, versionNumber: 1, comment: "Bitte in Grün.", wishes: [] }));
+    const list = await tool<{
+      feedback: { id: string; comment: string; version_number: number; model_title: string; seen_at: string | null; admin_url: string }[];
+    }>("list_feedback", { unseen: true }, me);
+    expect(list.feedback).toEqual([
+      expect.objectContaining({ id: f.id, comment: "Bitte in Grün.", version_number: 1, model_title: "Spulenhalter", seen_at: null }),
+    ]);
+    expect(list.feedback[0]!.admin_url).toBe(`${BASE}/models/${m.id}`);
+    expect(said(list)).toMatch(/mark_feedback_seen/);
+    const seen = await tool<{ marked: number }>("mark_feedback_seen", { ids: [f.id] }, me);
+    expect(seen.marked).toBe(1);
+    expect((await tool<{ feedback: unknown[] }>("list_feedback", { unseen: true }, me)).feedback).toEqual([]);
+    expect(await refusal("mark_feedback_seen", { ids: ["nope"] }, me)).toMatch(/No such feedback/);
+  });
+});
+
 function value<T>(o: Outcome<T>): T {
   if (!o.ok) throw new Error(`expected ok, got ${o.reason}: ${o.message}`);
   return o.value;

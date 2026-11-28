@@ -65,6 +65,17 @@ export interface FilamentsTable {
   updated_at: string;
 }
 
+export interface FeedbackTable {
+  id: string;
+  version_id: string;
+  customer_id: string;
+  comment: string | null;
+  /** JSON of backend/feedback.ts's Wish[]. */
+  wishes: string;
+  created_at: string;
+  seen_at: string | null;
+}
+
 export type DB = {
   customers: CustomersTable;
   models: ModelsTable;
@@ -72,6 +83,7 @@ export type DB = {
   drawings: DrawingsTable;
   slice_jobs: SliceJobsTable;
   filaments: FilamentsTable;
+  feedback: FeedbackTable;
 };
 
 export type CustomerRow = CustomersTable;
@@ -80,3 +92,4 @@ export type VersionRow = VersionsTable;
 export type DrawingRow = DrawingsTable;
 export type SliceJobRow = SliceJobsTable;
 export type FilamentRow = FilamentsTable;
+export type FeedbackRow = FeedbackTable;
