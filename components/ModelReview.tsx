@@ -67,7 +67,7 @@ export function ModelReview({
   return (
     <WishesProvider value={wishes}>
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid min-w-0 gap-4">
+        <div className="grid min-w-0 grid-cols-1 gap-4">
           <ModelViewer
             key={src}
             src={src}
@@ -85,9 +85,8 @@ export function ModelReview({
             <Dimensions size={size} scope={scope} />
             {print}
           </div>
-          {below}
         </div>
-        <aside className="grid min-w-0 gap-4 lg:sticky lg:top-4">
+        <aside className="grid min-w-0 grid-cols-1 gap-4 lg:sticky lg:top-4 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
           {facts.parts.length > 0 && (
             <PartsList
               facts={facts}
@@ -105,6 +104,8 @@ export function ModelReview({
           )}
           {children}
         </aside>
+        {/* After the side panel on a phone, under Maße and Druck on a desktop. */}
+        {below && <div className="min-w-0 lg:col-start-1">{below}</div>}
       </div>
     </WishesProvider>
   );

@@ -107,7 +107,7 @@ export default async function ModelAdminPage({ params, searchParams }: PageProps
                             <span className="ml-2 text-sm font-normal text-muted">
                               <time dateTime={v.createdAt}>{formatSeen(lang, v.createdAt)}</time>
                             </span>
-                            {i === 0 && <span className="ml-2 rounded-full border border-line px-2 text-xs font-medium">{all.customer.shown}</span>}
+                            {i === 0 && <span className="ml-2 rounded-full border border-line px-2 text-xs font-medium">{t.newest}</span>}
                           </h3>
                           <span title={t.seenHint} className="inline-flex items-center gap-1.5 text-sm text-muted">
                             <ShownIcon aria-hidden="true" className="size-4" />

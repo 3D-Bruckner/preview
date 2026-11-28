@@ -29,7 +29,7 @@ export default async function HomePage({ params }: PageProps<"/[lang]">) {
       </div>
       <div className="order-1 grid gap-4 md:order-2">
         {unseen.length > 0 && (
-          <section aria-labelledby="new-feedback" className={`${ui.card} border-accent`}>
+          <section aria-labelledby="new-feedback" className="rounded-md border border-accent bg-paper p-4">
             <h2 id="new-feedback" className={`${ui.h2} flex items-center gap-2`}>
               <FeedbackIcon aria-hidden="true" className="size-4 text-accent" />
               {t.home.feedbackTitle}
