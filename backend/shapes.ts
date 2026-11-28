@@ -68,6 +68,13 @@ export const modelSchema = z.object({
   updated_at: z.string(),
 });
 
+export const figuresSchema = z.object({
+  source: z.enum(["file", "slicer"]).describe("file: Bambu Studio's own slice in the 3MF; slicer: the slicing service's, on its fixed profiles."),
+  seconds: z.number().int().describe("Print time in seconds."),
+  grams: z.number().describe("Weight in grams, the whole model."),
+  filaments: z.array(z.object({ slot: z.number().int(), type: z.string().nullable(), color: z.string().nullable().describe("#rrggbb"), grams: z.number() })),
+});
+
 export const versionSchema = z.object({
   id: ID,
   model_id: ID,
@@ -76,7 +83,15 @@ export const versionSchema = z.object({
   created_at: z.string(),
   parts: z.number().int().nullable().describe("How many parts its 3MF has; null until its 3MF has been read (reread_facts)."),
   drawings: z.array(z.object({ id: ID, kind: z.enum(["png", "svg", "pdf"]) })),
+  figures: figuresSchema.nullable().describe("What printing the whole model takes; null while there are none (see slicing)."),
+  slicing: z
+    .enum(["pending", "failed"])
+    .nullable()
+    .describe("pending: the slicing service will answer for a 3MF without figures of its own; failed: it couldn't (slicing_error); null otherwise."),
+  slicing_error: z.string().nullable().describe("Why the slicing failed (the service's reason, such as off_plate or too_large)."),
 });
+
+export const sliceSchema = z.object({ slicing: z.literal("pending") });
 
 export const factsReadSchema = z.object({ parts: z.number().int().describe("How many parts the version's 3MF has.") });
 
@@ -110,6 +125,9 @@ export const versionJson = (v: Version): z.infer<typeof versionSchema> => ({
   created_at: v.createdAt,
   parts: v.parts,
   drawings: v.drawings,
+  figures: v.figures,
+  slicing: v.slicing,
+  slicing_error: v.reason,
 });
 
 /** The model as answered: its customer's link decides its own. */

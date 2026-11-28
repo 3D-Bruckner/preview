@@ -17,6 +17,7 @@ import {
   customerPatchSchema,
   customerSchema,
   factsReadSchema,
+  sliceSchema,
   modelInputSchema,
   modelOf,
   modelPatchSchema,
@@ -28,6 +29,7 @@ import {
   versionSchema,
 } from "./shapes";
 import { listVersions } from "./versions";
+import { resliceVersion } from "./figures";
 
 /** A domain refusal as the tool's refusal. */
 const refused = (o: Extract<Outcome<unknown>, { ok: false }>) => refuse(o.message);
@@ -222,6 +224,22 @@ export function mcpTools(rt: Runtime): Tool[] {
         const r = rereadFacts(rt, version_id);
         if (!r.ok) return refused(r);
         return { ...r.value, guidance: [`The version has ${r.value.parts} parts now; the customer's page lists them on its next load.`] };
+      },
+    }),
+    defineTool({
+      name: "reslice_version",
+      description:
+        "Ask the slicing service again for a version's print figures (time, weight, grams per filament) when its slicing failed (list_versions' slicing_error). Only for a 3MF without Bambu Studio's own figures, on an instance with a slicer.",
+      input: z.object({ version_id: z.string().min(1).describe("The version's id (list_versions).") }),
+      output: sliceSchema,
+      annotations: WRITE,
+      handle: async ({ version_id }) => {
+        const r = resliceVersion(rt, version_id);
+        if (!r.ok) return refused(r);
+        return {
+          ...r.value,
+          guidance: ["Back in line for the slicer; the customer's page says it is being worked out until it answers (usually within minutes)."],
+        };
       },
     }),
     // Tokens

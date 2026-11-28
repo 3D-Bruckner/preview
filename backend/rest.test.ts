@@ -154,4 +154,16 @@ describe("versions", () => {
     if ("error" in reader) throw new Error(reader.error);
     expect((await withToken("POST", `/versions/${v.value.id}/facts`, reader.token)).status).toBe(403);
   });
+
+  it("POST /versions/{id}/slice asks the slicer again; an instance without one answers 400", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const c = await json<{ id: string }>(await call("POST", "/customers", { name: "Ada" }, me));
+    const m = await json<{ id: string }>(await call("POST", "/models", { customerId: c.id, title: "Rampe" }, me));
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    const v = await addVersion(rt, m.id, { threemf: fixture("ramp.3mf"), preview: fixture("preview.png"), drawings: [] });
+    if (!v.ok) throw new Error(v.message);
+    expect((await call("POST", `/versions/${v.value.id}/slice`, undefined, me)).status).toBe(400);
+    const listed = await json<{ versions: { slicing: string | null; figures: unknown }[] }>(await call("GET", `/models/${m.id}/versions`, undefined, me));
+    expect(listed.versions[0]).toMatchObject({ figures: null, slicing: null, slicing_error: null });
+  });
 });

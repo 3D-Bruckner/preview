@@ -195,6 +195,35 @@ describe("versions", () => {
     expect(said(r)).toMatch(/3 parts/);
     expect(await refusal("reread_facts", { version_id: "nope" }, me)).toMatch(/nope/);
   });
+
+  it("list_versions answers each version's print figures and where its slicing stands; reslice_version asks again", async () => {
+    rt.store.close();
+    rt = testRuntime({ PREVIEW_SLICER_URL: "https://slicing.test" });
+    ctx = await mcpContext(rt);
+    const me = await owner();
+    const c = value(createCustomer(rt, { name: "A" }));
+    const m = value(createModel(rt, { customerId: c.id, title: "Spulenhalter" }));
+    const fixture = (name: string) => ({ path: join(import.meta.dirname, "fixtures", name) });
+    const sliced = value(await addVersion(rt, m.id, { threemf: fixture("plates.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    const plain = value(await addVersion(rt, m.id, { threemf: fixture("ramp.3mf"), preview: fixture("preview.png"), drawings: [] }));
+    rt.store.putSliceJob(plain.id, "2026-11-28T10:00:00.000Z");
+    rt.store.updateSliceJob(plain.id, { state: "failed", reason: "off_plate" });
+    const r = await tool<{ versions: { id: string; figures: unknown; slicing: string | null; slicing_error: string | null }[] }>(
+      "list_versions",
+      { modelId: m.id },
+      me,
+    );
+    expect(r.versions.find((v) => v.id === sliced.id)).toMatchObject({
+      figures: { source: "file", seconds: 5400, grams: 29.75 },
+      slicing: null,
+      slicing_error: null,
+    });
+    expect(r.versions.find((v) => v.id === plain.id)).toMatchObject({ figures: null, slicing: "failed", slicing_error: "off_plate" });
+    const again = await tool<{ slicing: string }>("reslice_version", { version_id: plain.id }, me);
+    expect(again.slicing).toBe("pending");
+    expect(said(again)).toMatch(/slic/i);
+    expect(await refusal("reslice_version", { version_id: sliced.id }, me)).toMatch(/own figures/);
+  });
 });
 
 function value<T>(o: Outcome<T>): T {

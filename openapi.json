@@ -535,9 +535,56 @@
                               "required": ["id", "kind"],
                               "additionalProperties": false
                             }
+                          },
+                          "figures": {
+                            "anyOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "source": {
+                                    "type": "string",
+                                    "enum": ["file", "slicer"],
+                                    "description": "file: Bambu Studio's own slice in the 3MF; slicer: the slicing service's, on its fixed profiles."
+                                  },
+                                  "seconds": {
+                                    "type": "integer",
+                                    "minimum": -9007199254740991,
+                                    "maximum": 9007199254740991,
+                                    "description": "Print time in seconds."
+                                  },
+                                  "grams": { "type": "number", "description": "Weight in grams, the whole model." },
+                                  "filaments": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "slot": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+                                        "type": { "type": ["string", "null"] },
+                                        "color": { "description": "#rrggbb", "type": ["string", "null"] },
+                                        "grams": { "type": "number" }
+                                      },
+                                      "required": ["slot", "type", "color", "grams"],
+                                      "additionalProperties": false
+                                    }
+                                  }
+                                },
+                                "required": ["source", "seconds", "grams", "filaments"],
+                                "additionalProperties": false
+                              },
+                              { "type": "null" }
+                            ],
+                            "description": "What printing the whole model takes; null while there are none (see slicing)."
+                          },
+                          "slicing": {
+                            "anyOf": [{ "type": "string", "enum": ["pending", "failed"] }, { "type": "null" }],
+                            "description": "pending: the slicing service will answer for a 3MF without figures of its own; failed: it couldn't (slicing_error); null otherwise."
+                          },
+                          "slicing_error": {
+                            "description": "Why the slicing failed (the service's reason, such as off_plate or too_large).",
+                            "type": ["string", "null"]
                           }
                         },
-                        "required": ["id", "model_id", "number", "note", "created_at", "parts", "drawings"],
+                        "required": ["id", "model_id", "number", "note", "created_at", "parts", "drawings", "figures", "slicing", "slicing_error"],
                         "additionalProperties": false
                       }
                     }
@@ -580,6 +627,44 @@
                     }
                   },
                   "required": ["parts"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request can't be read, or a value in it is not acceptable (`invalid_input`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "No valid API token or OAuth access token for this API (`unauthorized`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "403": {
+            "description": "The token's scope is `read`, and this changes something (`forbidden`)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "404": { "description": "No such thing (`not_found`)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/versions/{id}/slice": {
+      "post": {
+        "operationId": "resliceVersion",
+        "summary": "Ask the slicing service again for the version's print figures",
+        "description": "The REST counterpart of the MCP tool `reslice_version`.",
+        "tags": ["Models"],
+        "security": [{ "bearer": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "description": "The version's id", "schema": { "type": "string" } }],
+        "responses": {
+          "200": {
+            "description": "Back in line for the slicer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "slicing": { "type": "string", "const": "pending" } },
+                  "required": ["slicing"],
                   "additionalProperties": false
                 }
               }

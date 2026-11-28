@@ -17,6 +17,7 @@ import {
   customerPatchSchema,
   customerSchema,
   factsReadSchema,
+  sliceSchema,
   modelInputSchema,
   modelOf,
   modelPatchSchema,
@@ -28,6 +29,7 @@ import {
   versionSchema,
 } from "./shapes";
 import { listVersions } from "./versions";
+import { resliceVersion } from "./figures";
 
 /** The server the committed openapi.json names: a placeholder, since every instance serves its own at <PUBLIC_URL>/api/v1/openapi.json. */
 export const EXAMPLE_URL = "https://preview.example.com";
@@ -203,6 +205,18 @@ export const REST_OPS: Op<Runtime>[] = [
     ok: { status: 200, description: "What was read", schema: factsReadSchema },
     errors: [400, 401, 403, 404],
     handle: ({ ctx, params }) => answer(rereadFacts(ctx, params.id!), 200, (v) => v),
+  },
+  {
+    method: "POST",
+    path: "/versions/{id}/slice",
+    operationId: "resliceVersion",
+    tool: "reslice_version",
+    summary: "Ask the slicing service again for the version's print figures",
+    tag: "Models",
+    params: { id: "The version's id" },
+    ok: { status: 200, description: "Back in line for the slicer", schema: sliceSchema },
+    errors: [400, 401, 403, 404],
+    handle: ({ ctx, params }) => answer(resliceVersion(ctx, params.id!), 200, (v) => v),
   },
   // Tokens
   {
