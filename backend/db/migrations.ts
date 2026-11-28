@@ -69,4 +69,20 @@ export const MIGRATIONS: Migration[] = [
       create index slice_jobs_due on slice_jobs(state, next_at);
     `,
   },
+  {
+    // The operator's filaments (backend/filaments.ts): what a customer can pick per part, in the order shown (position); available 0/1.
+    name: "filaments",
+    sql: `
+      create table filaments (
+        id text primary key,
+        name text not null,
+        material text not null,
+        color text not null,
+        available integer not null default 1,
+        position integer not null,
+        created_at text not null,
+        updated_at text not null
+      );
+    `,
+  },
 ];

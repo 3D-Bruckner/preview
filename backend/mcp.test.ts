@@ -226,6 +226,26 @@ describe("versions", () => {
   });
 });
 
+describe("filaments", () => {
+  it("create_filament, list_filaments, update_filament and delete_filament keep the operator's list", async () => {
+    const me = await owner();
+    const empty = await tool<{ filaments: unknown[] }>("list_filaments", {}, me);
+    expect(empty.filaments).toEqual([]);
+    expect(said(empty)).toMatch(/no pickers/i);
+    const g = await tool<{ id: string; color: string; available: boolean }>("create_filament", { name: "Bambu Grün", material: "PLA", color: "#00AE42" }, me);
+    expect(g).toMatchObject({ color: "#00ae42", available: true });
+    await tool("create_filament", { name: "Weiß", material: "PETG", color: "#ffffff", available: false }, me);
+    const offered = await tool<{ filaments: { name: string }[] }>("list_filaments", { available: true }, me);
+    expect(offered.filaments.map((f) => f.name)).toEqual(["Bambu Grün"]);
+    expect(await refusal("create_filament", { name: "Rot", material: "PLA", color: "red" }, me)).toMatch(/#rrggbb/);
+    const off = await tool<{ available: boolean }>("update_filament", { id: g.id, available: false }, me);
+    expect(off.available).toBe(false);
+    expect(said(off)).toMatch(/no longer offered/i);
+    expect(await tool<{ id: string }>("delete_filament", { id: g.id }, me)).toMatchObject({ id: g.id });
+    expect(await refusal("delete_filament", { id: g.id }, me)).toMatch(/No filament/);
+  });
+});
+
 function value<T>(o: Outcome<T>): T {
   if (!o.ok) throw new Error(`expected ok, got ${o.reason}: ${o.message}`);
   return o.value;

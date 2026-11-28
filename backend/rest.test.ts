@@ -167,3 +167,22 @@ describe("versions", () => {
     expect(listed.versions[0]).toMatchObject({ figures: null, slicing: null, slicing_error: null });
   });
 });
+
+describe("filaments", () => {
+  it("POST, GET, PATCH and DELETE /filaments keep the operator's list", async () => {
+    const me: RestCaller = { person: await owner(), actor: OWNER, scope: "read+write", kind: "oauth" };
+    const made = await call("POST", "/filaments", { name: "Bambu Grün", material: "PLA", color: "#00AE42" }, me);
+    expect(made.status).toBe(201);
+    const g = await json<{ id: string; color: string; position: number }>(made);
+    expect(g).toMatchObject({ color: "#00ae42", position: 1 });
+    expect((await call("POST", "/filaments", { name: "Rot", material: "PLA", color: "red" }, me)).status).toBe(400);
+    const patched = await call("PATCH", `/filaments/${g.id}`, { available: false }, me);
+    expect(await json(patched)).toMatchObject({ available: false });
+    const all = await json<{ filaments: unknown[] }>(await call("GET", "/filaments", undefined, me));
+    expect(all.filaments).toHaveLength(1);
+    const offered = await json<{ filaments: unknown[] }>(await call("GET", "/filaments?available=true", undefined, me));
+    expect(offered.filaments).toHaveLength(0);
+    expect((await call("DELETE", `/filaments/${g.id}`, undefined, me)).status).toBe(200);
+    expect((await call("DELETE", `/filaments/${g.id}`, undefined, me)).status).toBe(404);
+  });
+});

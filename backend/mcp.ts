@@ -8,6 +8,7 @@ import { createApiToken, listApiTokens, revokeApiToken } from "next-app-kit/toke
 import * as z from "zod";
 import { createCustomer, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer } from "./customers";
 import { rereadFacts } from "./facts";
+import { createFilament, deleteFilament, listFilaments, updateFilament, type FilamentInput } from "./filaments";
 import { createModel, listModels, updateModel } from "./models";
 import type { Outcome } from "./outcome";
 import type { Runtime } from "./runtime";
@@ -17,6 +18,10 @@ import {
   customerPatchSchema,
   customerSchema,
   factsReadSchema,
+  filamentInputSchema,
+  filamentJson,
+  filamentPatchSchema,
+  filamentSchema,
   sliceSchema,
   modelInputSchema,
   modelOf,
@@ -240,6 +245,71 @@ export function mcpTools(rt: Runtime): Tool[] {
           ...r.value,
           guidance: ["Back in line for the slicer; the customer's page says it is being worked out until it answers (usually within minutes)."],
         };
+      },
+    }),
+    // Filaments
+    defineTool({
+      name: "list_filaments",
+      description:
+        "The operator's filaments in picker order: what a customer can pick for each part of a model and send back as a colour wish. Each has a name, material, colour (#rrggbb) and whether it is offered.",
+      input: z.object({ available: z.boolean().optional().describe("true: only those offered; false: only those kept but not offered.") }),
+      output: z.object({ filaments: z.array(filamentSchema) }),
+      annotations: READ,
+      handle: async ({ available }) => {
+        const list = listFilaments(rt, { available });
+        return {
+          filaments: list.map(filamentJson),
+          guidance: [
+            list.length === 0 && available === undefined
+              ? "No filaments yet: the customer's page shows no pickers, only the comment. create_filament adds the first."
+              : `The customer's pickers offer the available ones in this order (${list.filter((f) => f.available).length} of these).`,
+          ],
+        };
+      },
+    }),
+    defineTool({
+      name: "create_filament",
+      description: "Add a filament to the end of the operator's list; it is offered to customers unless available is false.",
+      input: filamentInputSchema,
+      output: filamentSchema,
+      annotations: WRITE,
+      handle: async (input) => {
+        const f = createFilament(rt, input as FilamentInput);
+        if (!f.ok) return refused(f);
+        return {
+          ...filamentJson(f.value),
+          guidance: [f.value.available ? "Added; customers can pick it on their next visit." : "Added, not offered (available: false)."],
+        };
+      },
+    }),
+    defineTool({
+      name: "update_filament",
+      description: "Change a filament; only what is given changes. available: false stops offering it without deleting it; position moves it in the picker.",
+      input: filamentPatchSchema.extend({ id: z.string().min(1).describe("The filament's id (list_filaments).") }),
+      output: filamentSchema,
+      annotations: WRITE,
+      handle: async ({ id, ...patch }) => {
+        const f = updateFilament(rt, id, patch);
+        if (!f.ok) return refused(f);
+        return {
+          ...filamentJson(f.value),
+          guidance: [
+            f.value.available ? "Changed; customers see it on their next visit." : "Changed; it is no longer offered to customers, and stays in the list.",
+          ],
+        };
+      },
+    }),
+    defineTool({
+      name: "delete_filament",
+      description:
+        "Delete a filament. Feedback that named it keeps its name, material and colour. To stop offering it but keep it, update_filament with available: false instead.",
+      input: z.object({ id: z.string().min(1).describe("The filament's id (list_filaments).") }),
+      output: z.object({ id: z.string() }),
+      annotations: DELETE,
+      handle: async ({ id }) => {
+        const d = deleteFilament(rt, id);
+        if (!d.ok) return refused(d);
+        return { ...d.value, guidance: ["Deleted; customers can't pick it any more."] };
       },
     }),
     // Tokens

@@ -1,7 +1,8 @@
-// What REST and MCP answer and take alike: customers, models, versions and API tokens. Written once here, so /api/v1 (rest.ts) and /mcp
+// What REST and MCP answer and take alike: customers, models, versions, filaments and API tokens. Written once here, so /api/v1 (rest.ts) and /mcp
 // (mcp.ts) can't drift apart.
 import * as z from "zod";
 import { getCustomer, type Customer } from "./customers";
+import { FILAMENT_MATERIAL_MAX, FILAMENT_NAME_MAX, type Filament } from "./filaments";
 import type { Model } from "./models";
 import type { Runtime } from "./runtime";
 import type { Version } from "./versions";
@@ -136,3 +137,43 @@ export function modelOf(rt: Runtime, m: Model): z.infer<typeof modelSchema> {
   if (!customer.ok) throw new Error(`model ${m.id} has no customer ${m.customerId}`);
   return modelJson(rt.config.publicUrl, m, customer.value);
 }
+
+// ---- Filaments
+
+export const filamentInputSchema = z.object({
+  name: z.string().trim().min(1).max(FILAMENT_NAME_MAX).describe('What the customer sees in the picker, e.g. "Bambu Grün".'),
+  material: z
+    .string()
+    .trim()
+    .min(1)
+    .max(FILAMENT_MATERIAL_MAX)
+    .describe("As the slicer writes it, e.g. PLA or PETG; with the colour it names a file's filament."),
+  color: z.string().describe("#rrggbb, e.g. #00ae42."),
+  available: z.boolean().optional().describe("Whether the customer can pick it (default true); false keeps it without offering it."),
+});
+
+export const filamentPatchSchema = filamentInputSchema.partial().extend({
+  position: z.number().int().min(1).optional().describe("Its place in the picker, from 1; equal places keep the order they were made in."),
+});
+
+export const filamentSchema = z.object({
+  id: ID,
+  name: z.string(),
+  material: z.string(),
+  color: z.string(),
+  available: z.boolean(),
+  position: z.number(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+export const filamentJson = (f: Filament): z.infer<typeof filamentSchema> => ({
+  id: f.id,
+  name: f.name,
+  material: f.material,
+  color: f.color,
+  available: f.available,
+  position: f.position,
+  created_at: f.createdAt,
+  updated_at: f.updatedAt,
+});

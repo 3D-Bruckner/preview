@@ -8,6 +8,7 @@ import * as z from "zod";
 import { API_TOKEN_PREFIX } from "./accounts";
 import { createCustomer, getCustomer, listCustomers, renewLink, revokeLink, updateCustomer, type Customer, type Language } from "./customers";
 import { rereadFacts } from "./facts";
+import { createFilament, deleteFilament, listFilaments, updateFilament, type FilamentInput } from "./filaments";
 import { createModel, listModels, updateModel } from "./models";
 import type { Outcome, Reason } from "./outcome";
 import type { Runtime } from "./runtime";
@@ -17,6 +18,10 @@ import {
   customerPatchSchema,
   customerSchema,
   factsReadSchema,
+  filamentInputSchema,
+  filamentJson,
+  filamentPatchSchema,
+  filamentSchema,
   sliceSchema,
   modelInputSchema,
   modelOf,
@@ -42,6 +47,7 @@ export const OPEN_API: OpenApiInfo = {
   tags: [
     { name: "Customers", description: "Who the models are for, and the link each opens their page by." },
     { name: "Models", description: "What a customer is shown, and its versions." },
+    { name: "Filaments", description: "The operator's filaments: what a customer can pick for each part, and send back as a colour wish." },
     { name: "Tokens", description: "The caller's own API tokens." },
   ],
   bearer: `An API token (\`${API_TOKEN_PREFIX}…\`, made in the web app or with create_api_token; a \`read\` token may only GET), or an OAuth access token from this instance issued for this API (\`resource=<base>/api/v1\`). A token for /mcp is refused here.`,
@@ -58,6 +64,7 @@ const customerBody = (ctx: Runtime) => (c: Customer) => customerJson(ctx.config.
 
 const CUSTOMER_ID = { id: "The customer's id" };
 const MODEL_ID = { id: "The model's id" };
+const FILAMENT_ID = { id: "The filament's id" };
 
 /**
  * Whether the caller came with an API token (the kit's `kind`). An API token may not make or revoke tokens, so a leaked one can't mint
@@ -217,6 +224,59 @@ export const REST_OPS: Op<Runtime>[] = [
     ok: { status: 200, description: "Back in line for the slicer", schema: sliceSchema },
     errors: [400, 401, 403, 404],
     handle: ({ ctx, params }) => answer(resliceVersion(ctx, params.id!), 200, (v) => v),
+  },
+  // Filaments
+  {
+    method: "GET",
+    path: "/filaments",
+    operationId: "listFilaments",
+    tool: "list_filaments",
+    summary: "The operator's filaments in picker order, all or only those offered (?available=true) or not (false)",
+    tag: "Filaments",
+    query: z.object({ available: z.enum(["true", "false"]).optional().describe("true: only those offered; false: only those not.") }),
+    ok: { status: 200, description: "The filaments", schema: z.object({ filaments: z.array(filamentSchema) }) },
+    errors: [400, 401],
+    handle: ({ ctx, query }) => ({
+      status: 200,
+      body: { filaments: listFilaments(ctx, { available: query.available === undefined ? undefined : query.available === "true" }).map(filamentJson) },
+    }),
+  },
+  {
+    method: "POST",
+    path: "/filaments",
+    operationId: "createFilament",
+    tool: "create_filament",
+    summary: "Add a filament to the end of the list",
+    tag: "Filaments",
+    body: filamentInputSchema,
+    ok: { status: 201, description: "The new filament", schema: filamentSchema },
+    errors: [400, 401, 403],
+    handle: ({ ctx, body }) => answer(createFilament(ctx, body as FilamentInput), 201, filamentJson),
+  },
+  {
+    method: "PATCH",
+    path: "/filaments/{id}",
+    operationId: "updateFilament",
+    tool: "update_filament",
+    summary: "Change a filament; only what is given changes",
+    tag: "Filaments",
+    params: FILAMENT_ID,
+    body: filamentPatchSchema,
+    ok: { status: 200, description: "The filament", schema: filamentSchema },
+    errors: [400, 401, 403, 404],
+    handle: ({ ctx, params, body }) => answer(updateFilament(ctx, params.id!, body as Partial<FilamentInput> & { position?: number }), 200, filamentJson),
+  },
+  {
+    method: "DELETE",
+    path: "/filaments/{id}",
+    operationId: "deleteFilament",
+    tool: "delete_filament",
+    summary: "Delete a filament; feedback that named it keeps its name, material and colour",
+    tag: "Filaments",
+    params: FILAMENT_ID,
+    ok: { status: 200, description: "Which was deleted", schema: z.object({ id: z.string() }) },
+    errors: [401, 403, 404],
+    handle: ({ ctx, params }) => answer(deleteFilament(ctx, params.id!), 200, (d) => d),
   },
   // Tokens
   {

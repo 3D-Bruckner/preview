@@ -6,7 +6,20 @@ import { refresh } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createApiToken, revokeApiToken } from "next-app-kit/tokens";
-import { createCustomer, createModel, renewLink, resliceVersion, revokeLink, updateCustomer, updateModel, type Language, type Outcome } from "@/backend";
+import {
+  createCustomer,
+  createFilament,
+  createModel,
+  deleteFilament,
+  renewLink,
+  resliceVersion,
+  updateFilament,
+  revokeLink,
+  updateCustomer,
+  updateModel,
+  type Language,
+  type Outcome,
+} from "@/backend";
 import { actionPerson } from "@/app/_lib/signin";
 import { runtime } from "@/app/_lib/runtime";
 import { copyFor, LANG_HEADER, type Copy } from "@/components/copy";
@@ -113,4 +126,41 @@ export async function reslice(_prev: Result | null, fd: FormData): Promise<Resul
   if (!out.ok) return refused(t, out, t.admin.refused.other);
   refresh();
   return { ok: true, message: t.admin.model.figures.resliced };
+}
+
+// ---- filaments (settings)
+
+const filamentFields = (fd: FormData) => ({
+  name: field(fd, "name"),
+  material: field(fd, "material"),
+  color: field(fd, "color"),
+  available: fd.get("available") === "on",
+});
+
+export async function addFilament(_prev: Result | null, fd: FormData): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = createFilament(runtime(), filamentFields(fd));
+  if (!out.ok) return refused(t, out, t.settings.filaments.invalid);
+  refresh();
+  return { ok: true, message: t.settings.filaments.added };
+}
+
+export async function saveFilament(_prev: Result | null, fd: FormData): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const position = Number(field(fd, "position"));
+  const out = updateFilament(runtime(), field(fd, "id"), { ...filamentFields(fd), ...(position ? { position } : {}) });
+  if (!out.ok) return refused(t, out, t.settings.filaments.invalid);
+  refresh();
+  return { ok: true, message: t.settings.filaments.saved };
+}
+
+export async function removeFilament(id: string): Promise<Result> {
+  const t = await words();
+  if (!(await actionPerson())) return { ok: false, error: t.common.signedOut };
+  const out = deleteFilament(runtime(), id);
+  if (!out.ok) return refused(t, out, t.admin.refused.other);
+  refresh();
+  return { ok: true, message: t.settings.filaments.removed };
 }

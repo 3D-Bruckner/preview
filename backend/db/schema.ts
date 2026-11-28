@@ -52,12 +52,26 @@ export interface SliceJobsTable {
   updated_at: string;
 }
 
+export interface FilamentsTable {
+  id: string;
+  name: string;
+  material: string;
+  /** #rrggbb, lower case. */
+  color: string;
+  /** 1: the customer can pick it; 0: kept, not offered. */
+  available: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type DB = {
   customers: CustomersTable;
   models: ModelsTable;
   versions: VersionsTable;
   drawings: DrawingsTable;
   slice_jobs: SliceJobsTable;
+  filaments: FilamentsTable;
 };
 
 export type CustomerRow = CustomersTable;
@@ -65,3 +79,4 @@ export type ModelRow = ModelsTable;
 export type VersionRow = VersionsTable;
 export type DrawingRow = DrawingsTable;
 export type SliceJobRow = SliceJobsTable;
+export type FilamentRow = FilamentsTable;
